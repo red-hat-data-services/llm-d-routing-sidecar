@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: qwen-decoder
+  labels:
+    app: qwen-decoder
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: nvidia.com/gpu.product
+                operator: In
+                values:
+                  - NVIDIA-A100-SXM4-80GB
+  initContainers:
+    - name: routing-proxy
+      image: routing-proxy
+      args:
+        - "--port=8000"
+        - "--vllm-port=8200"
+      ports:
+        - containerPort: 8000
+          protocol: TCP
+      restartPolicy: Always
+  # readinessProbe:
+  #   exec:
+  #     command:
+  #       - "true"
+  #   initialDelaySeconds: 2
+  #   periodSeconds: 360
+  # livenessProbe:
+  #   exec:
+  #     command:
+  #       - "true"
+  #   initialDelaySeconds: 1
+  #   periodSeconds: 360
+  containers:
+    - name: vllm
+      image: vllm-openai
+      args:
+        - "--model"
+        - "facebook/opt-125m"
+        - "--port"
+        - "8200"
+        - "--kv-transfer-config"
+        - '{"kv_connector":"LMCacheConnectorV1","kv_role":"kv_consumer","kv_connector_extra_config": {"discard_partial_chunks": false, "lmcache_rpc_port": "consumer1"}}'
+      env:
+        - name: CUDA_VISIBLE_DEVICES
+          value: "0"
+        - name: UCX_TLS
+          value: "cuda_ipc,cuda_copy,tcp"
+        - name: LMCACHE_CONFIG_FILE
+          value: /vllm-workspace/lmcache-decoder-config.yaml
+        - name: LMCACHE_USE_EXPERIMENTAL
+          value: "True"
+        - name: VLLM_ENABLE_V1_MULTIPROCESSING
+          value: "1"
+        - name: VLLM_WORKER_MULTIPROC_METHOD
+          value: spawn
+        - name: HF_HUB_CACHE
+          value: /vllm-workspace/models
+      ports:
+        - containerPort: 55555
+          protocol: TCP
+      volumeMounts:
+        - name: config-decoder
+          mountPath: /vllm-workspace
+        - name: model-cache
+          mountPath: /vllm-workspace/models
+      resources:
+        limits:
+          nvidia.com/gpu: 1
+        requests:
+          cpu: "16"
+          memory: 16Gi
+          nvidia.com/gpu: 1
+  volumes:
+    - name: config-decoder
+      configMap:
+        name: config-decoder
+    - name: model-cache
+      emptyDir:
+        sizeLimit: 500Mi
+  restartPolicy: Never
