@@ -1,0 +1,50 @@
+/*
+Copyright 2025 IBM.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package mock
+
+import (
+	"encoding/json"
+	"io"
+	"net/http"
+	"sync/atomic"
+)
+
+// ChatCompletion is a simple chat completion mock handler
+type ChatCompletionHandler struct {
+	RequestCount atomic.Int32
+}
+
+func (cc *ChatCompletionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	cc.RequestCount.Add(1)
+
+	defer r.Body.Close() //nolint:all
+	b, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest) // TODO: check FastAPI error code when failing to read body
+		w.Write([]byte(err.Error()))         //nolint:all
+		return
+	}
+
+	var completionRequest map[string]any
+	if err := json.Unmarshal(b, &completionRequest); err != nil {
+		w.Write([]byte(err.Error())) //nolint:all
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(200)
+}
