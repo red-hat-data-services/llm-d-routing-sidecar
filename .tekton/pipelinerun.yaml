@@ -9,9 +9,7 @@ metadata:
     pipelinesascode.tekton.dev/max-keep-runs: "3"
     pipelinesascode.tekton.dev/git-status: "true"
     pipelinesascode.tekton.dev/on-cel-expression: >
-      (!has(body.ref) || body.ref == 'refs/heads/main' || body.ref == 'refs/heads/dev') &&
-      (!has(body.head_commit) || !has(body.head_commit.author) || !body.head_commit.author.name.matches("(?i).*ci-tag-bot.*")) &&
-      (!has(body.pull_request) || (body.pull_request.base.ref == 'main' || body.pull_request.base.ref == 'dev'))
+      (!has(body.ref) || body.ref == 'refs/heads/main' || body.ref == 'refs/heads/dev') && (!has(body.head_commit) || !has(body.head_commit.author) || !body.head_commit.author.name.matches("(?i).*ci-tag-bot.*")) && (!has(body.pull_request) || (body.pull_request.base.ref == 'main' || body.pull_request.base.ref == 'dev'))
 spec:
   podTemplate:
     serviceAccountName: pipeline
@@ -122,10 +120,10 @@ spec:
         when:
           - input: "$(params.runOptional)"
             operator: in
-            values: ["true"]
+            values: [ "true" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: in
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         taskRef:
           name: go-lint-task
         runAfter:
@@ -138,10 +136,10 @@ spec:
         when:
           - input: "$(params.runOptional)"
             operator: in
-            values: ["true"]
+            values: [ "true" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: in
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         taskRef:
           name: go-test-task
         runAfter:
@@ -154,10 +152,10 @@ spec:
         when:
           - input: "$(params.runOptional)"
             operator: in
-            values: ["true"]
+            values: [ "true" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: in
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         taskRef:
           name: go-build-task
         runAfter:
@@ -168,7 +166,7 @@ spec:
 
       - name: extract-version-and-registry
         params:
-          - name: source-branch  
+          - name: source-branch
             value: "$(params.source_branch)"
         runAfter:
           - go-build
@@ -182,13 +180,13 @@ spec:
         when:
           - input: "$(params.runOptional)"
             operator: in
-            values: ["true"]
+            values: [ "true" ]
           - input: "$(params.source_branch)"
             operator: in
-            values: ["dev", "main"]
+            values: [ "dev", "main" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: notin
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         taskRef:
           name: openshift-redeploy-task
         params:
@@ -212,13 +210,13 @@ spec:
         when:
           - input: "$(params.runOptional)"
             operator: in
-            values: ["true"]
+            values: [ "true" ]
           - input: "$(params.source_branch)"
             operator: in
-            values: ["dev", "main"]
+            values: [ "dev", "main" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: notin
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         taskRef:
           name: go-test-post-deploy-task
         params:
@@ -242,10 +240,10 @@ spec:
         when:
           - input: "$(params.source_branch)"
             operator: in
-            values: ["dev"]
+            values: [ "dev" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: notin
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         continueOn:
           errors: true
         params:
@@ -254,7 +252,7 @@ spec:
           - name: openshift_namespace
             value: "hc4ai-operator-dev"
         taskRef:
-          name: benchmark-task 
+          name: benchmark-task
         runAfter:
           - go-test-post-deploy-h100
 
@@ -262,10 +260,10 @@ spec:
         when:
           - input: "$(params.source_branch)"
             operator: in
-            values: ["dev"]
+            values: [ "dev" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: notin
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         runAfter:
           - benchmark-h100
         taskRef:
@@ -275,13 +273,13 @@ spec:
         when:
           - input: "$(params.runOptional)"
             operator: in
-            values: ["true"]
+            values: [ "true" ]
           - input: "$(params.source_branch)"
             operator: in
-            values: ["main"]
+            values: [ "main" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: in
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         taskRef:
           name: promote-to-prod-task
         params:
@@ -303,13 +301,13 @@ spec:
         when:
           - input: "$(params.runOptional)"
             operator: in
-            values: ["true"]
+            values: [ "true" ]
           - input: "$(params.source_branch)"
             operator: in
-            values: ["dev"]
+            values: [ "dev" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: in
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         params:
           - name: dev-version
             value: "$(tasks.extract-version-and-registry.results.dev-version)"
@@ -333,10 +331,10 @@ spec:
         when:
           - input: "$(params.runOptional)"
             operator: in
-            values: ["true"]
+            values: [ "true" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: in
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         runAfter:
           - buildah-build
         taskRef:
@@ -358,10 +356,10 @@ spec:
         when:
           - input: "$(params.source_branch)"
             operator: in
-            values: ["main"]
+            values: [ "main" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: in
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         taskRef:
           name: tag-version-task
         params:
@@ -383,10 +381,10 @@ spec:
         when:
           - input: "$(params.source_branch)"
             operator: in
-            values: ["dev"]
+            values: [ "dev" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: in
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         taskRef:
           name: tag-version-task
         params:
@@ -408,13 +406,13 @@ spec:
         when:
           - input: "$(params.runOptional)"
             operator: in
-            values: ["true"]
+            values: [ "true" ]
           - input: "$(params.source_branch)"
             operator: in
-            values: ["main"]
+            values: [ "main" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: in
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         taskRef:
           name: openshift-redeploy-task
         params:
@@ -438,13 +436,13 @@ spec:
         when:
           - input: "$(params.runOptional)"
             operator: in
-            values: ["true"]
+            values: [ "true" ]
           - input: "$(params.source_branch)"
             operator: in
-            values: ["dev"]
+            values: [ "dev" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: in
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         taskRef:
           name: openshift-redeploy-task
         params:
@@ -468,13 +466,13 @@ spec:
         when:
           - input: "$(params.runOptional)"
             operator: in
-            values: ["true"]
+            values: [ "true" ]
           - input: "$(params.source_branch)"
             operator: in
-            values: ["main"]
+            values: [ "main" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: in
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         taskRef:
           name: go-test-post-deploy-task
         params:
@@ -498,13 +496,13 @@ spec:
         when:
           - input: "$(params.runOptional)"
             operator: in
-            values: ["true"]
+            values: [ "true" ]
           - input: "$(params.source_branch)"
             operator: in
-            values: ["dev"]
+            values: [ "dev" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: in
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         taskRef:
           name: go-test-post-deploy-task
         params:
@@ -528,10 +526,10 @@ spec:
         when:
           - input: "$(params.source_branch)"
             operator: in
-            values: ["main"]
+            values: [ "main" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: in
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         continueOn:
           errors: true
         params:
@@ -540,18 +538,18 @@ spec:
           - name: openshift_namespace
             value: "hc4ai-operator-dev"
         taskRef:
-          name: benchmark-task 
+          name: benchmark-task
         runAfter:
           - go-test-post-deploy-after-promotion
-    
+
       - name: benchmark-after-scan
         when:
           - input: "$(params.source_branch)"
             operator: in
-            values: ["dev"]
+            values: [ "dev" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: in
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         continueOn:
           errors: true
         params:
@@ -560,7 +558,7 @@ spec:
           - name: openshift_namespace
             value: "hc4ai-operator-dev"
         taskRef:
-          name: benchmark-task 
+          name: benchmark-task
         runAfter:
           - go-test-post-deploy-after-scan
 
@@ -568,10 +566,10 @@ spec:
         when:
           - input: "$(params.source_branch)"
             operator: in
-            values: ["main"]
+            values: [ "main" ]
           - input: "$(tasks.read-cluster-name.results.cluster-name)"
             operator: in
-            values: ["cluster-platform-eval"]
+            values: [ "cluster-platform-eval" ]
         params:
           - name: source-branch
             value: "$(params.source_branch)"
@@ -585,28 +583,28 @@ spec:
           - name: source
             workspace: source
           - name: git-auth
-            workspace: git-auth  
+            workspace: git-auth
 
       - name: pipeline-complete-main
         when:
           - input: "$(params.source_branch)"
             operator: in
-            values: ["main"]
+            values: [ "main" ]
         runAfter:
           - increment-versions-after-promotion
         taskRef:
           name: noop-task
-  
+
       - name: pipeline-complete-dev
         when:
           - input: "$(params.source_branch)"
             operator: in
-            values: ["dev"]
+            values: [ "dev" ]
         runAfter:
           - benchmark-after-scan
         taskRef:
           name: noop-task
-       
+
   workspaces:
     - name: container-storage
       persistentVolumeClaim:
@@ -630,9 +628,9 @@ spec:
     - name: basic-auth
       secret:
         secretName: "{{ git_auth_secret }}"
-    - name: git-auth  
+    - name: git-auth
       secret:
         secretName: "git-auth-secret-neuralmagic"
     - name: registry-secret
       secret:
-        secretName: quay-secret
+        secretName: quay-secret-llm-d
