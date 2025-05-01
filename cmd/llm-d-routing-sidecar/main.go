@@ -29,10 +29,12 @@ func main() {
 	var (
 		port     string
 		vLLMPort string
+		protocol string
 	)
 
 	flag.StringVar(&port, "port", "8000", "the port the sidecar is listening on")
 	flag.StringVar(&vLLMPort, "vllm-port", "8001", "the port vLLM is listening on")
+	flag.StringVar(&protocol, "protocol", "native", "the P/D protocol to use. Either native or lmcache")
 	klog.InitFlags(nil)
 	flag.Parse()
 
@@ -42,6 +44,12 @@ func main() {
 	ctx := signals.SetupSignalHandler(context.Background())
 	logger := klog.FromContext(ctx)
 
+	if protocol != proxy.ProtocolNative && protocol != proxy.ProtocolLMCache {
+		logger.Info("Error: --protocol must either be 'native' or 'lmcache'")
+		return
+	}
+	logger.Info("p/d protocol validated", "protocol", protocol)
+
 	// start reverse proxy HTTP server
 	targetURL, err := url.Parse("http://localhost:" + vLLMPort)
 	if err != nil {
@@ -49,7 +57,7 @@ func main() {
 		return
 	}
 
-	proxy := proxy.NewProxy(port, targetURL)
+	proxy := proxy.NewProxy(port, targetURL, protocol)
 	if err := proxy.Start(ctx); err != nil {
 		logger.Error(err, "Failed to start proxy server")
 	}

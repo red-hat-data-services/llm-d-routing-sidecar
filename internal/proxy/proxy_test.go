@@ -50,7 +50,7 @@ var _ = Describe("Reverse Proxy", func() {
 				targetURL, err := url.Parse(decodeBackend.URL)
 				Expect(err).ToNot(HaveOccurred())
 
-				proxy := NewProxy("0", targetURL) // port 0 to automatically choose one that's available.
+				proxy := NewProxy("0", targetURL, ProtocolLMCache) // port 0 to automatically choose one that's available.
 
 				ctx, cancelFn := context.WithCancel(ctx)
 				defer cancelFn()
@@ -106,7 +106,7 @@ var _ = Describe("Reverse Proxy", func() {
 			decodeURL, err := url.Parse(decodeBackend.URL)
 			Expect(err).ToNot(HaveOccurred())
 
-			proxy = NewProxy("0", decodeURL) // port 0 to automatically choose one that's available.
+			proxy = NewProxy("0", decodeURL, ProtocolLMCache) // port 0 to automatically choose one that's available.
 		})
 
 		It("should successfully send request to prefill worker and then to decoder worker", func() {

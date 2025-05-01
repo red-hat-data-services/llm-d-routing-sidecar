@@ -21,6 +21,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -37,6 +39,10 @@ func (s *Server) ChatCompletionsHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	s.runProtocol(w, r, prefillPodURL)
+}
+
+func (s *Server) runLMCacheProtocol(w http.ResponseWriter, r *http.Request, prefillPodURL string) {
 	// Read and parse request body
 	defer r.Body.Close() //nolint:all
 	original, err := io.ReadAll(r.Body)
@@ -46,6 +52,7 @@ func (s *Server) ChatCompletionsHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Parse completion request
 	var completionRequest map[string]any
 	if err := json.Unmarshal(original, &completionRequest); err != nil {
 		if err := errorJSONInvalid(err, w); err != nil {
@@ -54,7 +61,7 @@ func (s *Server) ChatCompletionsHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Create prefiller request
+	// Create prefiller request. Set max_tokens to 1.
 
 	ctx := r.Context()
 	preq := r.Clone(ctx)
@@ -72,7 +79,7 @@ func (s *Server) ChatCompletionsHandler(w http.ResponseWriter, r *http.Request) 
 	preq.Body = io.NopCloser(strings.NewReader(string(pbody)))
 	preq.ContentLength = int64(len(pbody))
 
-	// Forward request
+	// Forward request to prefiller
 
 	prefillHandler, err := s.prefillerProxyHandler(prefillPodURL)
 	if err != nil {
@@ -82,7 +89,7 @@ func (s *Server) ChatCompletionsHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	pw := &statusResponseWriter{}
+	pw := &bufferedResponseWriter{}
 	prefillHandler.ServeHTTP(pw, preq)
 
 	if pw.statusCode < 200 || pw.statusCode >= 300 {
@@ -95,4 +102,126 @@ func (s *Server) ChatCompletionsHandler(w http.ResponseWriter, r *http.Request) 
 
 	r.Body = io.NopCloser(strings.NewReader(string(original)))
 	s.decoderProxy.ServeHTTP(w, r)
+}
+
+func (s *Server) runNativeProtocol(w http.ResponseWriter, r *http.Request, prefillPodURL string) {
+	// Read request body
+	defer r.Body.Close() //nolint:all
+	original, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest) // TODO: check FastAPI error code when failing to read body
+		w.Write([]byte(err.Error()))         //nolint:all
+		return
+	}
+
+	// Parse completion request
+	var completionRequest map[string]any
+	if err := json.Unmarshal(original, &completionRequest); err != nil {
+		if err := errorJSONInvalid(err, w); err != nil {
+			s.logger.Error(err, "failed to send error response to client")
+		}
+		return
+	}
+
+	// Generate unique request UUID
+	uuid, err := uuid.NewUUID()
+	if err != nil {
+		if err := errorBadGateway(err, w); err != nil {
+			s.logger.Error(err, "failed to send error response to client")
+		}
+		return
+	}
+	uuidStr := uuid.String()
+
+	// Send request to prefill pod
+
+	// 1. Prepare request
+	ctx := r.Context()
+	preq := r.Clone(ctx)
+
+	preq.Header.Add(RequestHeaderRequestID, uuidStr)
+
+	streamValue, streamOk := completionRequest[RequestFieldStream]
+
+	completionRequest[RequestFieldDoRemoteDecode] = true
+	completionRequest[RequestFieldStream] = false
+
+	pbody, err := json.Marshal(completionRequest)
+	if err != nil {
+		if err := errorJSONInvalid(err, w); err != nil {
+			s.logger.Error(err, "failed to send error response to client")
+		}
+		return
+	}
+	preq.Body = io.NopCloser(strings.NewReader(string(pbody)))
+	preq.ContentLength = int64(len(pbody))
+
+	prefillHandler, err := s.prefillerProxyHandler(prefillPodURL)
+	if err != nil {
+		if err := errorBadGateway(err, w); err != nil {
+			s.logger.Error(err, "failed to send error response to client")
+		}
+		return
+	}
+
+	// 2. Forward request to prefiller
+	pw := &bufferedResponseWriter{}
+	prefillHandler.ServeHTTP(pw, preq)
+
+	if pw.statusCode < 200 || pw.statusCode >= 300 {
+		s.logger.Error(err, "request failed", "code", pw.statusCode)
+		w.WriteHeader(pw.statusCode)
+		return
+	}
+
+	// Process response - extract p/d fields
+	var prefillerResponse map[string]any
+	if err := json.Unmarshal([]byte(pw.buffer.String()), &prefillerResponse); err != nil {
+		if err := errorJSONInvalid(err, w); err != nil {
+			s.logger.Error(err, "failed to send error response to client")
+		}
+		return
+	}
+
+	// 1. Verify fields exists
+
+	blockIDs, ok := prefillerResponse[RequestFieldRemoteBlockIDs]
+	if !ok {
+		// TODO: error or ignore?
+		s.logger.Info("warning: missing 'remote_block_ids' field in prefiller response")
+	}
+
+	engineID, ok := prefillerResponse[RequestFieldRemoteEngineID]
+	if !ok {
+		// TODO: error or ignore?
+		s.logger.Info("warning: missing 'remote_engine_id' field in prefiller response")
+	}
+
+	// 2. Prepare decode request
+	dreq := r.Clone(ctx)
+
+	dreq.Header.Add(RequestHeaderRequestID, uuidStr)
+
+	delete(completionRequest, RequestFieldDoRemoteDecode)
+	delete(completionRequest, RequestFieldStream)
+	if streamOk {
+		completionRequest[RequestFieldStream] = streamValue
+	}
+
+	completionRequest[RequestFieldRemoteBlockIDs] = blockIDs
+	completionRequest[RequestFieldRemoteEngineID] = engineID
+
+	dbody, err := json.Marshal(completionRequest)
+	if err != nil {
+		if err := errorJSONInvalid(err, w); err != nil {
+			s.logger.Error(err, "failed to send error response to client")
+		}
+		return
+	}
+	dreq.Body = io.NopCloser(strings.NewReader(string(dbody)))
+	dreq.ContentLength = int64(len(dbody))
+
+	// 3. Forward to local decoder.
+
+	s.decoderProxy.ServeHTTP(w, dreq)
 }

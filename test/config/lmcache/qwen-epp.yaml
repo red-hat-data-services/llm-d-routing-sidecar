@@ -27,10 +27,12 @@ spec:
             - "9002"
             - -grpcHealthPort
             - "9003"
-          # env:
-          #   - name: KVCACHE_INDEXER_REDIS_ADDR
-          #     value: vllm-p2p-lookup-server-service.e2e-solution.svc.cluster.local:8100
-          image: quay.io/vmaroon/gateway-api-inference-extension/epp:kvc-v3
+          env:
+            - name: ENABLE_PD_FILTER
+              value: "true"
+            #   - name: KVCACHE_INDEXER_REDIS_ADDR
+            #     value: vllm-p2p-lookup-server-service.e2e-solution.svc.cluster.local:8100
+          image: quay.io/vmaroon/gateway-api-inference-extension/epp:pd-filter
           imagePullPolicy: Always
           livenessProbe:
             failureThreshold: 3
