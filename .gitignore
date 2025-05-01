@@ -33,3 +33,5 @@ go.work
 *~
 .secrets.env
 .envrc
+
+dockerconfig.json

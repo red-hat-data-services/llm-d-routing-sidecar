@@ -5,6 +5,12 @@ resources:
   - prefiller-cm.yaml
   - qwen-decoder-svc.yaml
   - qwen-prefiller-svc.yaml
+  - inferencemodel.yaml
+  - inferencepool.yaml
+  - qwen-epp.yaml
+  - qwen-epp-svc.yaml
+  - pod-read-role.yaml
+  - pod-read-rolebinding.yaml
 
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
