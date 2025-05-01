@@ -1,0 +1,120 @@
+apiVersion: inference.networking.x-k8s.io/v1alpha2
+kind: InferencePool
+metadata:
+  name: qwen
+spec:
+  extensionRef:
+    failureMode: FailClose
+    group: ""
+    kind: Service
+    name: qwen-epp
+  selector:
+    vllmd.org/inferenceServing: "true"
+    vllmd.org/model: qwen
+  targetPortNumber: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: qwen-epp
+  name: qwen-epp
+spec:
+  selector:
+    matchLabels:
+      app: qwen-epp
+  template:
+    metadata:
+      labels:
+        app: qwen-epp
+    spec:
+      containers:
+        - args:
+            - -poolName
+            - qwen
+            - -poolNamespace
+            - e2e-solution
+            - -v
+            - "4"
+            - --zap-encoder
+            - json
+            - -grpcPort
+            - "9002"
+            - -grpcHealthPort
+            - "9003"
+          env:
+            - name: KVCACHE_INDEXER_REDIS_ADDR
+              value: vllm-p2p-lookup-server-service.e2e-solution.svc.cluster.local:8100
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: hf_token_llama3-8b-instruct
+                  name: vllm-p2p-secrets
+          image: quay.io/vmaroon/gateway-api-inference-extension/epp:kvc-v3
+          imagePullPolicy: Always
+          livenessProbe:
+            failureThreshold: 3
+            grpc:
+              port: 9003
+              service: inference-extension
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: epp
+          ports:
+            - containerPort: 9002
+              protocol: TCP
+            - containerPort: 9003
+              protocol: TCP
+            - containerPort: 9090
+              name: metrics
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            grpc:
+              port: 9003
+              service: inference-extension
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: facebook-opt-125m-route
+  namespace: e2e-solution
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: inference-gateway
+  rules:
+    - backendRefs:
+        - group: inference.networking.x-k8s.io
+          kind: InferencePool
+          name: facebook-opt-125m
+          port: 8000
+          weight: 1
+      matches:
+        - path:
+            type: PathPrefix
+            value: /fb
+      timeouts:
+        request: 300s
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: facebook-opt-125m-epp
+  namespace: e2e-solution
+spec:
+  ports:
+    - appProtocol: http2
+      port: 9002
+      protocol: TCP
+      targetPort: 9002
+  selector:
+    app: facebook-opt-125m-epp
+  type: NodePort

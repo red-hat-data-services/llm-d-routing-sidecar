@@ -4,6 +4,9 @@ metadata:
   name: qwen-prefiller
   labels:
     app: qwen-prefiller
+    llmd.org/inferenceServing: "true"
+    llmd.org/model: "qwen2-0-5b"
+    llmd.org/role: "prefill"
 spec:
   affinity:
     nodeAffinity:
@@ -17,9 +20,11 @@ spec:
   containers:
     - name: vllm
       image: vllm-openai
+      securityContext:
+        allowPrivilegeEscalation: false
       args:
         - "--model"
-        - "facebook/opt-125m"
+        - "Qwen/Qwen2-0.5B"
         - "--port"
         - "8000"
         - "--kv-transfer-config"
@@ -44,6 +49,9 @@ spec:
           mountPath: /vllm-workspace
         - name: model-cache
           mountPath: /vllm-workspace/models
+      ports:
+        - containerPort: 8000
+          protocol: TCP
       resources:
         limits:
           nvidia.com/gpu: 1
@@ -57,5 +65,5 @@ spec:
         name: config-prefiller
     - name: model-cache
       emptyDir:
-        sizeLimit: 500Mi
+        sizeLimit: 1Gi
   restartPolicy: Never

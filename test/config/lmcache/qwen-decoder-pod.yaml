@@ -4,6 +4,9 @@ metadata:
   name: qwen-decoder
   labels:
     app: qwen-decoder
+    llmd.org/inferenceServing: "true"
+    llmd.org/model: "qwen2-0-5b"
+    llmd.org/role: "decode"
 spec:
   affinity:
     nodeAffinity:
@@ -17,6 +20,9 @@ spec:
   initContainers:
     - name: routing-proxy
       image: routing-proxy
+      securityContext:
+        allowPrivilegeEscalation: false
+        runAsNonRoot: true
       args:
         - "--port=8000"
         - "--vllm-port=8200"
@@ -39,9 +45,11 @@ spec:
   containers:
     - name: vllm
       image: vllm-openai
+      securityContext:
+        allowPrivilegeEscalation: false
       args:
         - "--model"
-        - "facebook/opt-125m"
+        - "Qwen/Qwen2-0.5B"
         - "--port"
         - "8200"
         - "--kv-transfer-config"
@@ -82,5 +90,5 @@ spec:
         name: config-decoder
     - name: model-cache
       emptyDir:
-        sizeLimit: 500Mi
+        sizeLimit: 1Gi
   restartPolicy: Never
