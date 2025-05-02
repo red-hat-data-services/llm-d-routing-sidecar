@@ -32,7 +32,7 @@ spec:
               value: "true"
             #   - name: KVCACHE_INDEXER_REDIS_ADDR
             #     value: vllm-p2p-lookup-server-service.e2e-solution.svc.cluster.local:8100
-          image: quay.io/vmaroon/gateway-api-inference-extension/epp:pd-filter
+          image: quay.io/lvillard/epp:pd-lv
           imagePullPolicy: Always
           livenessProbe:
             failureThreshold: 3
