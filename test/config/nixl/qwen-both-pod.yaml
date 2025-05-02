@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: qwen-both
+  labels:
+    app: qwen-both
+    llmd.org/inferenceServing: "true"
+    llmd.org/model: "qwen2-0-5b"
+    llmd.org/role: "both"
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: nvidia.com/gpu.product
+                operator: In
+                values:
+                  - NVIDIA-A100-SXM4-80GB
+  initContainers:
+    - name: routing-proxy
+      image: routing-proxy
+      securityContext:
+        allowPrivilegeEscalation: false
+        runAsNonRoot: true
+      args:
+        - "--port=8000"
+        - "--vllm-port=8200"
+      ports:
+        - containerPort: 8000
+          protocol: TCP
+      restartPolicy: Always
+  containers:
+    - name: vllm-decode
+      image: vllm-openai
+      securityContext:
+        allowPrivilegeEscalation: false
+      args:
+        - "--model"
+        - "Qwen/Qwen2-0.5B"
+        - "--port"
+        - "8200"
+        - "--enforce-eager"
+        - "--kv-transfer-config"
+        - '{"kv_connector":"NixlConnector","kv_role":"kv_both"}'
+      env:
+        - name: CUDA_VISIBLE_DEVICES
+          value: "0"
+        - name: UCX_TLS
+          value: "cuda_ipc,cuda_copy,tcp"
+        - name: NIXL_ROLE
+          value: RECVER
+        - name: HF_HUB_CACHE
+          value: /vllm-workspace/models
+      ports:
+        - containerPort: 55555
+          protocol: TCP
+      volumeMounts:
+        - name: config-decoder
+          mountPath: /vllm-workspace
+        - name: model-cache
+          mountPath: /vllm-workspace/models
+      resources:
+        limits:
+          nvidia.com/gpu: 1
+        requests:
+          cpu: "16"
+          memory: 16Gi
+          nvidia.com/gpu: 1
+    - name: vllm-prefill
+      image: vllm-openai
+      securityContext:
+        allowPrivilegeEscalation: false
+      args:
+        - "--model"
+        - "Qwen/Qwen2-0.5B"
+        - "--port"
+        - "8100"
+        - "--enforce-eager"
+        - "--kv-transfer-config"
+        - '{"kv_connector":"NixlConnector","kv_role":"kv_both"}'
+      env:
+        - name: CUDA_VISIBLE_DEVICES
+          value: "0"
+        - name: UCX_TLS
+          value: "cuda_ipc,cuda_copy,tcp"
+        - name: NIXL_ROLE
+          value: SENDER
+        - name: HF_HUB_CACHE
+          value: /vllm-workspace/models
+      ports:
+        - containerPort: 55555
+          protocol: TCP
+      volumeMounts:
+        - name: model-cache
+          mountPath: /vllm-workspace/models
+      resources:
+        limits:
+          nvidia.com/gpu: 1
+        requests:
+          cpu: "16"
+          memory: 16Gi
+          nvidia.com/gpu: 1
+  volumes:
+    - name: model-cache
+      emptyDir:
+        sizeLimit: 1Gi
+  restartPolicy: Never
