@@ -11,5 +11,4 @@ spec:
   selector:
     llmd.org/inferenceServing: "true"
     llmd.org/model: qwen2-0-5b
-    llmd.org/role: "decode"
   targetPortNumber: 8000

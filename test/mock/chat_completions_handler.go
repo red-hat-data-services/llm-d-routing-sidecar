@@ -20,12 +20,17 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"sync"
 	"sync/atomic"
 )
 
 // ChatCompletion is a simple chat completion mock handler
 type ChatCompletionHandler struct {
-	RequestCount atomic.Int32
+	Connector           string
+	RequestCount        atomic.Int32
+	CompletionRequests  []map[string]any
+	CompletionResponses []map[string]any
+	mu                  sync.Mutex
 }
 
 func (cc *ChatCompletionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -45,6 +50,26 @@ func (cc *ChatCompletionHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
+	if cc.Connector == "nixl" {
+		raw := []byte(`{"remote_block_ids":[1, 2, 3], "remote_engine_id": "5b5fb28f-3f30-4bdd-9a36-958d52459200"}`)
+
+		var completionResponse map[string]any
+		if err := json.Unmarshal(raw, &completionResponse); err != nil {
+			w.Write([]byte(err.Error())) //nolint:all
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		cc.mu.Lock()
+		cc.CompletionResponses = append(cc.CompletionResponses, completionResponse)
+		cc.mu.Unlock()
+
+		w.Write(raw) //nolint:all
+	}
+
+	cc.mu.Lock()
+	cc.CompletionRequests = append(cc.CompletionRequests, completionRequest)
+	cc.mu.Unlock()
 
 	w.WriteHeader(200)
 }

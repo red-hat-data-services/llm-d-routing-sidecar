@@ -16,28 +16,32 @@ limitations under the License.
 
 package proxy
 
-import "net/http"
+import (
+	"net/http"
+	"strings"
+)
 
-// statusResponseWriter receives responses from prefillers
-type statusResponseWriter struct {
+// bufferedResponseWriter receives responses from prefillers
+type bufferedResponseWriter struct {
 	headers    http.Header
+	buffer     strings.Builder
 	statusCode int
 }
 
-func (w *statusResponseWriter) Header() http.Header {
+func (w *bufferedResponseWriter) Header() http.Header {
 	if w.headers == nil {
 		w.headers = make(http.Header)
 	}
 	return w.headers
 }
 
-func (w *statusResponseWriter) Write(b []byte) (int, error) {
+func (w *bufferedResponseWriter) Write(b []byte) (int, error) {
 	if w.statusCode == 0 {
 		w.statusCode = http.StatusOK
 	}
-	return len(b), nil
+	return w.buffer.Write(b)
 }
 
-func (w *statusResponseWriter) WriteHeader(statusCode int) {
+func (w *bufferedResponseWriter) WriteHeader(statusCode int) {
 	w.statusCode = statusCode
 }
