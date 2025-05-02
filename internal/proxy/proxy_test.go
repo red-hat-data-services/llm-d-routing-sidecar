@@ -37,7 +37,7 @@ var _ = Describe("Reverse Proxy", func() {
 
 		DescribeTable("should forward requests to decode server",
 
-			func(path string) {
+			func(path string, connector string) {
 				_, ctx := ktesting.NewTestContext(GinkgoT())
 
 				ackHandlerFn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -50,7 +50,7 @@ var _ = Describe("Reverse Proxy", func() {
 				targetURL, err := url.Parse(decodeBackend.URL)
 				Expect(err).ToNot(HaveOccurred())
 
-				proxy := NewProxy("0", targetURL, ProtocolLMCache) // port 0 to automatically choose one that's available.
+				proxy := NewProxy("0", targetURL, connector) // port 0 to automatically choose one that's available.
 
 				ctx, cancelFn := context.WithCancel(ctx)
 				defer cancelFn()
@@ -77,53 +77,70 @@ var _ = Describe("Reverse Proxy", func() {
 				Expect(resp.StatusCode).To(BeNumerically("==", 200))
 			},
 
-			Entry("when the path is /v1/chat/completions", "/v1/chat/completions"),
-			Entry("when the path is /v1/completions", "/v1/completions"),
-			Entry("when the path is /v1/embeddings", "/v1/embeddings"),
-			Entry("when the path is /score", "/score"),
-			Entry("when the path is /healthz", "/healthz"),
+			Entry("when the path is /v1/chat/completions and protocol is LMCache", "/v1/chat/completions", ConnectorLMCache),
+			Entry("when the path is /v1/completions and protocol is LMCache", "/v1/completions", ConnectorLMCache),
+			Entry("when the path is /v1/embeddings and protocol is LMCache", "/v1/embeddings", ConnectorLMCache),
+			Entry("when the path is /score and protocol is LMCache", "/score", ConnectorLMCache),
+			Entry("when the path is /healthz and protocol is LMCache", "/healthz", ConnectorLMCache),
+
+			Entry("when the path is /v1/chat/completions and protocol is NIXL", "/v1/chat/completions", ConnectorNIXL),
+			Entry("when the path is /v1/completions and protocol is NIXL", "/v1/completions", ConnectorNIXL),
+			Entry("when the path is /v1/embeddings and protocol is NIXL", "/v1/embeddings", ConnectorNIXL),
+			Entry("when the path is /score and protocol is NIXL", "/score", ConnectorNIXL),
+			Entry("when the path is /healthz and protocol is NIXL", "/healthz", ConnectorNIXL),
 		)
 	})
 
 	When("x-prefiller-url is present", func() {
 		var ctx context.Context
 		var decodeBackend *httptest.Server
+		var decodeHandler *mock.ChatCompletionHandler
 		var prefillBackend *httptest.Server
-		var proxy *Server
+		var prefillHandler *mock.ChatCompletionHandler
+		var decodeURL *url.URL
 
 		BeforeEach(func() {
 			_, ctx = ktesting.NewTestContext(GinkgoT())
 
 			// Decoder
-			decodeBackend = httptest.NewServer(&mock.ChatCompletionHandler{})
+			decodeHandler = &mock.ChatCompletionHandler{}
+			decodeBackend = httptest.NewServer(decodeHandler)
 			DeferCleanup(decodeBackend.Close)
 
 			// Prefiller
-			prefillBackend = httptest.NewServer(&mock.ChatCompletionHandler{})
+			prefillHandler = &mock.ChatCompletionHandler{}
+			prefillBackend = httptest.NewServer(prefillHandler)
 			DeferCleanup(prefillBackend.Close)
 
 			// Proxy
-			decodeURL, err := url.Parse(decodeBackend.URL)
+			url, err := url.Parse(decodeBackend.URL)
 			Expect(err).ToNot(HaveOccurred())
-
-			proxy = NewProxy("0", decodeURL, ProtocolLMCache) // port 0 to automatically choose one that's available.
+			decodeURL = url
 		})
 
-		It("should successfully send request to prefill worker and then to decoder worker", func() {
-			By("starting the proxy")
-			go func() {
-				defer GinkgoRecover()
+		When("using LMCache connector", func() {
+			var proxy *Server
 
-				err := proxy.Start(ctx)
-				Expect(err).ToNot(HaveOccurred())
-			}()
+			BeforeEach(func() {
+				proxy = NewProxy("0", decodeURL, ConnectorLMCache) // port 0 to automatically choose one that's available.
+			})
 
-			time.Sleep(1 * time.Second)
-			Expect(proxy.addr).ToNot(BeNil())
-			proxyBaseAddr := "http://" + proxy.addr.String()
+			It("should successfully send request to 1. prefill 2. decode", func() {
+				By("starting the proxy")
 
-			By("sending a /v1/chat/completions request with prefill header")
-			body := `{
+				go func() {
+					defer GinkgoRecover()
+
+					err := proxy.Start(ctx)
+					Expect(err).ToNot(HaveOccurred())
+				}()
+
+				time.Sleep(1 * time.Second)
+				Expect(proxy.addr).ToNot(BeNil())
+				proxyBaseAddr := "http://" + proxy.addr.String()
+
+				By("sending a /v1/chat/completions request with prefill header")
+				body := `{
         		"model": "Qwen/Qwen2-0.5B",
 	        	"messages": [
     			      {"role": "user", "content": "Hello"}
@@ -131,52 +148,96 @@ var _ = Describe("Reverse Proxy", func() {
         		"max_tokens": 50
 			}`
 
-			req, err := http.NewRequest(http.MethodPost, proxyBaseAddr+ChatCompletionsPath, strings.NewReader(body))
-			Expect(err).ToNot(HaveOccurred())
-			req.Header.Add(RequestHeaderPrefillURL, prefillBackend.URL)
-
-			_, err = http.DefaultClient.Do(req)
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(decodeBackend.Config.Handler.(*mock.ChatCompletionHandler).RequestCount.Load()).To(BeNumerically("==", 1))
-			Expect(prefillBackend.Config.Handler.(*mock.ChatCompletionHandler).RequestCount.Load()).To(BeNumerically("==", 1))
-		})
-
-		It("should fail when the request is an invalid JSON", func() {
-			By("starting the proxy")
-			go func() {
-				defer GinkgoRecover()
-
-				err := proxy.Start(ctx)
+				req, err := http.NewRequest(http.MethodPost, proxyBaseAddr+ChatCompletionsPath, strings.NewReader(body))
 				Expect(err).ToNot(HaveOccurred())
-			}()
+				req.Header.Add(RequestHeaderPrefillURL, prefillBackend.URL)
 
-			time.Sleep(1 * time.Second)
-			Expect(proxy.addr).ToNot(BeNil())
-			proxyBaseAddr := "http://" + proxy.addr.String()
+				_, err = http.DefaultClient.Do(req)
+				Expect(err).ToNot(HaveOccurred())
 
-			By("sending an invalid /v1/chat/completions request with prefill header")
-			body := `{
+				Expect(decodeBackend.Config.Handler.(*mock.ChatCompletionHandler).RequestCount.Load()).To(BeNumerically("==", 1))
+				Expect(prefillBackend.Config.Handler.(*mock.ChatCompletionHandler).RequestCount.Load()).To(BeNumerically("==", 1))
+			})
+
+			It("should fail when the request is an invalid JSON", func() {
+				By("starting the proxy")
+				go func() {
+					defer GinkgoRecover()
+
+					err := proxy.Start(ctx)
+					Expect(err).ToNot(HaveOccurred())
+				}()
+
+				time.Sleep(1 * time.Second)
+				Expect(proxy.addr).ToNot(BeNil())
+				proxyBaseAddr := "http://" + proxy.addr.String()
+
+				By("sending an invalid /v1/chat/completions request with prefill header")
+				body := `{
         		"model": "Qwen/Qwen2-0.5B",
 	        	"messages": [
     			      {"role": "user", "content": "Hello"}
         		],
         		"max_tokens: 50
 			}`
-			req, err := http.NewRequest(http.MethodPost, proxyBaseAddr+ChatCompletionsPath, strings.NewReader(body))
-			Expect(err).ToNot(HaveOccurred())
-			req.Header.Add(RequestHeaderPrefillURL, prefillBackend.URL)
+				req, err := http.NewRequest(http.MethodPost, proxyBaseAddr+ChatCompletionsPath, strings.NewReader(body))
+				Expect(err).ToNot(HaveOccurred())
+				req.Header.Add(RequestHeaderPrefillURL, prefillBackend.URL)
 
-			r, err := http.DefaultClient.Do(req)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(r.StatusCode).To(BeNumerically("==", 400))
+				r, err := http.DefaultClient.Do(req)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(r.StatusCode).To(BeNumerically("==", 400))
+			})
+
+			DescribeTable("should not forward non-completion requests to prefill server",
+
+				func(path string) {
+					decodeBackend.Config.Handler = &mock.GenericHandler{}
+					prefillBackend.Config.Handler = &mock.GenericHandler{}
+
+					By("starting the proxy")
+					go func() {
+						defer GinkgoRecover()
+
+						err := proxy.Start(ctx)
+						Expect(err).ToNot(HaveOccurred())
+					}()
+
+					time.Sleep(1 * time.Second)
+					Expect(proxy.addr).ToNot(BeNil())
+					proxyBaseAddr := "http://" + proxy.addr.String()
+
+					req, err := http.NewRequest(http.MethodPost, proxyBaseAddr+path, nil)
+					Expect(err).ToNot(HaveOccurred())
+					req.Header.Add(RequestHeaderPrefillURL, prefillBackend.URL)
+
+					Expect(err).ToNot(HaveOccurred())
+					resp, err := http.DefaultClient.Do(req)
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(resp.StatusCode).To(BeNumerically("==", 200))
+					Expect(decodeBackend.Config.Handler.(*mock.GenericHandler).RequestCount.Load()).To(BeNumerically("==", 1))
+					Expect(prefillBackend.Config.Handler.(*mock.GenericHandler).RequestCount.Load()).To(BeNumerically("==", 0))
+				},
+
+				Entry("when the path is /v1/embeddings", "/v1/embeddings"),
+				Entry("when the path is /score", "/score"),
+				Entry("when the path is /healthz", "/healthz"),
+				Entry("when the path is /metrics", "/metrics"),
+			)
 		})
 
-		DescribeTable("should not forward non-completion requests to prefill server",
+		When("using NIXL connector", func() {
+			var proxy *Server
 
-			func(path string) {
-				decodeBackend.Config.Handler = &mock.GenericHandler{}
-				prefillBackend.Config.Handler = &mock.GenericHandler{}
+			BeforeEach(func() {
+				proxy = NewProxy("0", decodeURL, ConnectorNIXL) // port 0 to automatically choose one that's available.
+
+				decodeHandler.Connector = ConnectorNIXL
+				prefillHandler.Connector = ConnectorNIXL
+			})
+
+			It("should successfully send request to 1. prefill 2. decode with the right fields", func() {
 
 				By("starting the proxy")
 				go func() {
@@ -190,23 +251,44 @@ var _ = Describe("Reverse Proxy", func() {
 				Expect(proxy.addr).ToNot(BeNil())
 				proxyBaseAddr := "http://" + proxy.addr.String()
 
-				req, err := http.NewRequest(http.MethodPost, proxyBaseAddr+path, nil)
+				By("sending a /v1/chat/completions request with prefill header")
+				body := `{
+        		"model": "Qwen/Qwen2-0.5B",
+	        	"messages": [
+    			      {"role": "user", "content": "Hello"}
+        		],
+        		"max_tokens": 50
+			}`
+
+				req, err := http.NewRequest(http.MethodPost, proxyBaseAddr+ChatCompletionsPath, strings.NewReader(body))
 				Expect(err).ToNot(HaveOccurred())
 				req.Header.Add(RequestHeaderPrefillURL, prefillBackend.URL)
 
-				Expect(err).ToNot(HaveOccurred())
-				resp, err := http.DefaultClient.Do(req)
+				_, err = http.DefaultClient.Do(req)
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(resp.StatusCode).To(BeNumerically("==", 200))
-				Expect(decodeBackend.Config.Handler.(*mock.GenericHandler).RequestCount.Load()).To(BeNumerically("==", 1))
-				Expect(prefillBackend.Config.Handler.(*mock.GenericHandler).RequestCount.Load()).To(BeNumerically("==", 0))
-			},
+				Expect(prefillHandler.RequestCount.Load()).To(BeNumerically("==", 1))
 
-			Entry("when the path is /v1/embeddings", "/v1/embeddings"),
-			Entry("when the path is /score", "/score"),
-			Entry("when the path is /healthz", "/healthz"),
-			Entry("when the path is /metrics", "/metrics"),
-		)
+				Expect(len(prefillHandler.CompletionRequests)).To(BeNumerically("==", 1))
+				prq1 := prefillHandler.CompletionRequests[0]
+
+				Expect(prq1).To(HaveKeyWithValue(RequestFieldDoRemoteDecode, true))
+				Expect(prq1).To(HaveKeyWithValue("stream", false))
+
+				Expect(len(prefillHandler.CompletionResponses)).To(BeNumerically("==", 1))
+				prp1 := prefillHandler.CompletionResponses[0]
+				Expect(prp1).To(HaveKey(RequestFieldRemoteBlockIDs))
+				Expect(prp1).To(HaveKey(RequestFieldRemoteEngineID))
+
+				Expect(decodeHandler.RequestCount.Load()).To(BeNumerically("==", 1))
+				Expect(len(decodeHandler.CompletionRequests)).To(BeNumerically("==", 1))
+				drq1 := decodeHandler.CompletionRequests[0]
+
+				Expect(drq1).To(HaveKey(RequestFieldRemoteBlockIDs))
+				Expect(drq1).To(HaveKey(RequestFieldRemoteEngineID))
+
+			})
+
+		})
 	})
 })

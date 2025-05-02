@@ -39,7 +39,7 @@ func (s *Server) ChatCompletionsHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	s.runProtocol(w, r, prefillPodURL)
+	s.runConnectorProtocol(w, r, prefillPodURL)
 }
 
 func (s *Server) runLMCacheProtocol(w http.ResponseWriter, r *http.Request, prefillPodURL string) {
@@ -104,7 +104,7 @@ func (s *Server) runLMCacheProtocol(w http.ResponseWriter, r *http.Request, pref
 	s.decoderProxy.ServeHTTP(w, r)
 }
 
-func (s *Server) runNativeProtocol(w http.ResponseWriter, r *http.Request, prefillPodURL string) {
+func (s *Server) runNIXLProtocol(w http.ResponseWriter, r *http.Request, prefillPodURL string) {
 	// Read request body
 	defer r.Body.Close() //nolint:all
 	original, err := io.ReadAll(r.Body)

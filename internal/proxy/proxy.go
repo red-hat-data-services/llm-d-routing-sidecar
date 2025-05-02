@@ -39,40 +39,40 @@ const (
 	RequestFieldRemoteEngineID  = "remote_engine_id"
 	RequestFieldStream          = "stream"
 
-	ProtocolNative  = "native"
-	ProtocolLMCache = "lmcache"
+	ConnectorNIXL    = "nixl"
+	ConnectorLMCache = "lmcache"
 )
 
 type protocolRunner func(http.ResponseWriter, *http.Request, string)
 
 type Server struct {
-	logger       logr.Logger
-	addr         net.Addr       // the proxy TCP address
-	port         string         // the proxy TCP port
-	decoderURL   *url.URL       // the local decoder URL
-	decoderProxy http.Handler   // decoder proxy handler
-	runProtocol  protocolRunner // the handler for running the protocol
+	logger               logr.Logger
+	addr                 net.Addr       // the proxy TCP address
+	port                 string         // the proxy TCP port
+	decoderURL           *url.URL       // the local decoder URL
+	decoderProxy         http.Handler   // decoder proxy handler
+	runConnectorProtocol protocolRunner // the handler for running the protocol
 
 	prefillerProxies   map[string]http.Handler // cached prefiller proxy handlers
 	prefillerProxiesMu sync.RWMutex
 }
 
-func NewProxy(port string, decodeURL *url.URL, protocol string) *Server {
+func NewProxy(port string, decodeURL *url.URL, connector string) *Server {
 	server := &Server{
 		port:             port,
 		decoderURL:       decodeURL,
 		prefillerProxies: make(map[string]http.Handler),
 	}
-	switch protocol {
-	case ProtocolLMCache:
-		server.runProtocol = server.runLMCacheProtocol
-	case ProtocolNative:
+	switch connector {
+	case ConnectorLMCache:
+		server.runConnectorProtocol = server.runLMCacheProtocol
+	case ConnectorNIXL:
+		fallthrough
 	default:
-		server.runProtocol = server.runNativeProtocol
+		server.runConnectorProtocol = server.runNIXLProtocol
 	}
 
 	return server
-
 }
 
 // Start the HTTP reverse proxy.
