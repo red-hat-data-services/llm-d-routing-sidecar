@@ -6,7 +6,7 @@ metadata:
     app: qwen-decoder
     llmd.org/inferenceServing: "true"
     llmd.org/model: "qwen2-0-5b"
-    llmd.org/role: "decode"
+    llm-d.ai/role: "decode"
 spec:
   affinity:
     nodeAffinity:

@@ -28,8 +28,10 @@ spec:
             - -grpcHealthPort
             - "9003"
           env:
-            - name: ENABLE_PD_FILTER
+            - name: PD_ENABLED
               value: "true"
+            - name: PD_PROMPT_LEN_THRESHOLD
+              value: "10"
             #   - name: KVCACHE_INDEXER_REDIS_ADDR
             #     value: vllm-p2p-lookup-server-service.e2e-solution.svc.cluster.local:8100
           image: quay.io/llm-d/llm-d-gateway-api-inference-extension-dev:0.0.5

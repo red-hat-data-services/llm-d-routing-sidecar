@@ -6,7 +6,7 @@ metadata:
     app: qwen-prefiller
     llmd.org/inferenceServing: "true"
     llmd.org/model: "qwen2-0-5b"
-    llmd.org/role: "prefill"
+    llm-d.ai/role: "prefill"
 spec:
   affinity:
     nodeAffinity:

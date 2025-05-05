@@ -1,5 +1,5 @@
  curl  http://localhost:8000/v1/completions \
-      -H "x-prefiller-url: http://qwen-prefiller:8000" \
+
       -H "Content-Type: application/json" \
        -d '{
         "model": "Qwen/Qwen2-0.5B",
@@ -7,6 +7,7 @@
         "max_tokens": 200
       }'
 
+#   -H "x-prefiller-url: http://qwen-prefiller:8000" \
 #  -H "x-prefiller-url: http://10.128.5.12:8000" \
 
 
@@ -19,3 +20,6 @@
             {"role": "user", "content": "Who won the world cup in 2020?"}
         ]
       }'
+
+
+lm_eval --model local-completions --tasks gsm8k --model_args model="Qwen/Qwen2-0.5B",base_url=http://127.0.0.1:8000/v1/completions,num_concurrent=5,max_retries=3,tokenized_requests=False

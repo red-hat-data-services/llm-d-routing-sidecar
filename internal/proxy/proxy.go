@@ -31,10 +31,10 @@ import (
 
 const (
 	RequestHeaderPrefillURL = "x-prefiller-url"
-	RequestHeaderRequestID  = "x-request-id"
+	RequestHeaderRequestID  = "X-Request-Id"
 
-	RequestFieldDoRemotePrefill = "do-remote-prefill"
-	RequestFieldDoRemoteDecode  = "do-remote-decode"
+	RequestFieldDoRemotePrefill = "do_remote_prefill"
+	RequestFieldDoRemoteDecode  = "do_remote_decode"
 	RequestFieldRemoteBlockIDs  = "remote_block_ids"
 	RequestFieldRemoteEngineID  = "remote_engine_id"
 	RequestFieldRemoteHost      = "remote_host"
