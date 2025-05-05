@@ -30,18 +30,6 @@ spec:
         - containerPort: 8000
           protocol: TCP
       restartPolicy: Always
-  # readinessProbe:
-  #   exec:
-  #     command:
-  #       - "true"
-  #   initialDelaySeconds: 2
-  #   periodSeconds: 360
-  # livenessProbe:
-  #   exec:
-  #     command:
-  #       - "true"
-  #   initialDelaySeconds: 1
-  #   periodSeconds: 360
   containers:
     - name: vllm
       image: vllm-openai
@@ -52,29 +40,26 @@ spec:
         - "Qwen/Qwen2-0.5B"
         - "--port"
         - "8200"
+        - "--enforce-eager"
         - "--kv-transfer-config"
-        - '{"kv_connector":"LMCacheConnectorV1","kv_role":"kv_consumer","kv_connector_extra_config": {"discard_partial_chunks": false, "lmcache_rpc_port": "consumer1"}}'
+        - '{"kv_connector":"NixlConnector","kv_role":"kv_both"}'
       env:
         - name: CUDA_VISIBLE_DEVICES
           value: "0"
         - name: UCX_TLS
           value: "cuda_ipc,cuda_copy,tcp"
-        - name: LMCACHE_CONFIG_FILE
-          value: /vllm-workspace/lmcache-decoder-config.yaml
-        - name: LMCACHE_USE_EXPERIMENTAL
-          value: "True"
-        - name: VLLM_ENABLE_V1_MULTIPROCESSING
-          value: "1"
-        - name: VLLM_WORKER_MULTIPROC_METHOD
-          value: spawn
+        - name: NIXL_ROLE
+          value: RECVER
+        - name: VLLM_NIXL_SIDE_CHANNEL_HOST
+          value: qwen-prefiller
+        - name: VLLM_NIXL_SIDE_CHANNEL_PORT
+          value: 5557
         - name: HF_HUB_CACHE
           value: /vllm-workspace/models
       ports:
-        - containerPort: 55555
+        - containerPort: 55557
           protocol: TCP
       volumeMounts:
-        - name: config-decoder
-          mountPath: /vllm-workspace
         - name: model-cache
           mountPath: /vllm-workspace/models
       resources:
@@ -85,9 +70,6 @@ spec:
           memory: 16Gi
           nvidia.com/gpu: 1
   volumes:
-    - name: config-decoder
-      configMap:
-        name: config-decoder
     - name: model-cache
       emptyDir:
         sizeLimit: 1Gi

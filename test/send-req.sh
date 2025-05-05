@@ -1,5 +1,5 @@
  curl  http://localhost:8000/v1/completions \
-      -H "x-prefiller-url: http://10.241.129.8:8000"\
+      -H "x-prefiller-url: http://localhost:8100"\
       -H "Content-Type: application/json" \
        -d '{
         "model": "Qwen/Qwen2-0.5B",

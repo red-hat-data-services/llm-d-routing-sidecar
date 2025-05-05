@@ -52,12 +52,7 @@ spec:
           value: RECVER
         - name: HF_HUB_CACHE
           value: /vllm-workspace/models
-      ports:
-        - containerPort: 55555
-          protocol: TCP
       volumeMounts:
-        - name: config-decoder
-          mountPath: /vllm-workspace
         - name: model-cache
           mountPath: /vllm-workspace/models
       resources:
@@ -88,9 +83,6 @@ spec:
           value: SENDER
         - name: HF_HUB_CACHE
           value: /vllm-workspace/models
-      ports:
-        - containerPort: 55555
-          protocol: TCP
       volumeMounts:
         - name: model-cache
           mountPath: /vllm-workspace/models
