@@ -31,7 +31,7 @@ import (
 
 const (
 	RequestHeaderPrefillURL = "x-prefiller-url"
-	RequestHeaderRequestID  = "X-Request-Id"
+	RequestHeaderRequestID  = "x-request-id"
 
 	RequestFieldDoRemotePrefill = "do_remote_prefill"
 	RequestFieldDoRemoteDecode  = "do_remote_decode"

@@ -248,6 +248,6 @@ func (s *Server) runNIXLProtocol(w http.ResponseWriter, r *http.Request, prefill
 	dreq.ContentLength = int64(len(dbody))
 
 	// 3. Forward to local decoder.
-	s.logger.Info("sending request to decoder", "body", string(pbody))
+	s.logger.Info("sending request to decoder", "body", string(dbody))
 	s.decoderProxy.ServeHTTP(w, dreq)
 }
