@@ -37,6 +37,8 @@ const (
 	RequestFieldDoRemoteDecode  = "do-remote-decode"
 	RequestFieldRemoteBlockIDs  = "remote_block_ids"
 	RequestFieldRemoteEngineID  = "remote_engine_id"
+	RequestFieldRemoteHost      = "remote_host"
+	RequestFieldRemotePort      = "remote_port"
 	RequestFieldStream          = "stream"
 
 	ConnectorNIXL    = "nixl"
