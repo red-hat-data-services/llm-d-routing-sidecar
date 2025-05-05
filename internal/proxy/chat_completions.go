@@ -43,6 +43,8 @@ func (s *Server) ChatCompletionsHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) runLMCacheProtocol(w http.ResponseWriter, r *http.Request, prefillPodURL string) {
+	s.logger.Info("running LMCache protocol")
+
 	// Read and parse request body
 	defer r.Body.Close() //nolint:all
 	original, err := io.ReadAll(r.Body)
@@ -105,6 +107,8 @@ func (s *Server) runLMCacheProtocol(w http.ResponseWriter, r *http.Request, pref
 }
 
 func (s *Server) runNIXLProtocol(w http.ResponseWriter, r *http.Request, prefillPodURL string) {
+	s.logger.Info("running NIXL protocol")
+
 	// Read request body
 	defer r.Body.Close() //nolint:all
 	original, err := io.ReadAll(r.Body)
@@ -165,6 +169,7 @@ func (s *Server) runNIXLProtocol(w http.ResponseWriter, r *http.Request, prefill
 	}
 
 	// 2. Forward request to prefiller
+	s.logger.Info("sending request to prefiller", "url", prefillPodURL)
 	pw := &bufferedResponseWriter{}
 	prefillHandler.ServeHTTP(pw, preq)
 
@@ -197,6 +202,25 @@ func (s *Server) runNIXLProtocol(w http.ResponseWriter, r *http.Request, prefill
 		s.logger.Info("warning: missing 'remote_engine_id' field in prefiller response")
 	}
 
+	remoteHost, ok := prefillerResponse[RequestFieldRemoteHost]
+	if !ok {
+		// TODO: error or ignore?
+		s.logger.Info("warning: missing 'remote_host' field in prefiller response")
+	}
+
+	remotePort, ok := prefillerResponse[RequestFieldRemotePort]
+	if !ok {
+		// TODO: error or ignore?
+		s.logger.Info("warning: missing 'remote_port' field in prefiller response")
+	}
+
+	s.logger.Info("received prefiller response",
+		RequestFieldRemoteBlockIDs, blockIDs,
+		RequestFieldRemoteEngineID, engineID,
+		RequestFieldRemoteHost, remoteHost,
+		RequestFieldRemotePort, remotePort,
+	)
+
 	// 2. Prepare decode request
 	dreq := r.Clone(ctx)
 
@@ -210,6 +234,8 @@ func (s *Server) runNIXLProtocol(w http.ResponseWriter, r *http.Request, prefill
 
 	completionRequest[RequestFieldRemoteBlockIDs] = blockIDs
 	completionRequest[RequestFieldRemoteEngineID] = engineID
+	completionRequest[RequestFieldRemoteHost] = remoteHost
+	completionRequest[RequestFieldRemotePort] = remotePort
 
 	dbody, err := json.Marshal(completionRequest)
 	if err != nil {
@@ -222,6 +248,6 @@ func (s *Server) runNIXLProtocol(w http.ResponseWriter, r *http.Request, prefill
 	dreq.ContentLength = int64(len(dbody))
 
 	// 3. Forward to local decoder.
-
+	s.logger.Info("sending request to decoder")
 	s.decoderProxy.ServeHTTP(w, dreq)
 }
