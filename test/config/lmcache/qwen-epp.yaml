@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qwen2-0-5b-epp
+  labels:
+    app: qwen2-0-5b
+spec:
+  selector:
+    matchLabels:
+      app: qwen2-0-5b
+  template:
+    metadata:
+      labels:
+        app: qwen2-0-5b
+    spec:
+      containers:
+        - args:
+            - -poolName
+            - qwen2-0-5b
+            - -poolNamespace
+            - e2e-pd
+            - -v
+            - "4"
+            - --zap-encoder
+            - json
+            - -grpcPort
+            - "9002"
+            - -grpcHealthPort
+            - "9003"
+          env:
+            - name: ENABLE_PD_FILTER
+              value: "true"
+            #   - name: KVCACHE_INDEXER_REDIS_ADDR
+            #     value: vllm-p2p-lookup-server-service.e2e-solution.svc.cluster.local:8100
+          image: quay.io/lvillard/epp:pd-lv
+          imagePullPolicy: Always
+          livenessProbe:
+            failureThreshold: 3
+            grpc:
+              port: 9003
+              service: inference-extension
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: epp
+          ports:
+            - containerPort: 9002
+              protocol: TCP
+            - containerPort: 9003
+              protocol: TCP
+            - containerPort: 9090
+              name: metrics
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            grpc:
+              port: 9003
+              service: inference-extension
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1

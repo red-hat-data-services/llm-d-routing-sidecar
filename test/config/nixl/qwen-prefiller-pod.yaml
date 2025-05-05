@@ -6,7 +6,7 @@ metadata:
     app: qwen-prefiller
     llmd.org/inferenceServing: "true"
     llmd.org/model: "qwen2-0-5b"
-    llmd.org/role: "prefill"
+    llm-d.ai/role: "prefill"
 spec:
   affinity:
     nodeAffinity:
@@ -27,30 +27,33 @@ spec:
         - "Qwen/Qwen2-0.5B"
         - "--port"
         - "8000"
+        - "--enforce-eager"
         - "--kv-transfer-config"
-        - '{"kv_connector":"LMCacheConnectorV1","kv_role":"kv_producer","kv_connector_extra_config": {"discard_partial_chunks": false, "lmcache_rpc_port": "producer1"}}'
+        - '{"kv_connector":"NixlConnector","kv_role":"kv_both"}'
       env:
         - name: CUDA_VISIBLE_DEVICES
           value: "0"
         - name: UCX_TLS
           value: "cuda_ipc,cuda_copy,tcp"
-        - name: LMCACHE_CONFIG_FILE
-          value: /vllm-workspace/lmcache-prefiller-config.yaml
-        - name: LMCACHE_USE_EXPERIMENTAL
-          value: "True"
-        - name: VLLM_ENABLE_V1_MULTIPROCESSING
-          value: "1"
-        - name: VLLM_WORKER_MULTIPROC_METHOD
-          value: spawn
+        # - name: NIXL_ROLE
+        #   value: SENDER
+        - name: VLLM_NIXL_SIDE_CHANNEL_PORT
+          value: "5557"
+        - name: VLLM_NIXL_SIZE_CHANNEL_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: VLLM_LOGGING_LEVEL
+          value: DEBUG
         - name: HF_HUB_CACHE
           value: /vllm-workspace/models
       volumeMounts:
-        - name: config-prefiller
-          mountPath: /vllm-workspace
         - name: model-cache
           mountPath: /vllm-workspace/models
       ports:
         - containerPort: 8000
+          protocol: TCP
+        - containerPort: 5557
           protocol: TCP
       resources:
         limits:
@@ -60,9 +63,6 @@ spec:
           memory: 16Gi
           nvidia.com/gpu: 1
   volumes:
-    - name: config-prefiller
-      configMap:
-        name: config-prefiller
     - name: model-cache
       emptyDir:
         sizeLimit: 1Gi
