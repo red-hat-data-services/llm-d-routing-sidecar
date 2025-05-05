@@ -6,7 +6,7 @@ resources:
 images:
   - name: routing-proxy
     newName: quay.io/llm-d/llm-d-routing-sidecar-dev
-    newTag: 0.0.5
+    newTag: 0.0.6
   - name: vllm-openai
     newName: quay.io/lvillard/vllm-d
     newTag: nixl

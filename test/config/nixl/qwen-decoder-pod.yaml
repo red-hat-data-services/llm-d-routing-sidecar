@@ -26,6 +26,7 @@ spec:
       args:
         - "--port=8000"
         - "--vllm-port=8200"
+        - "--connector=nixl"
       ports:
         - containerPort: 8000
           protocol: TCP
@@ -48,14 +49,16 @@ spec:
           value: "0"
         - name: UCX_TLS
           value: "cuda_ipc,cuda_copy,tcp"
-        - name: NIXL_ROLE
-          value: RECVER
+        # - name: NIXL_ROLE
+        #   value: RECVER
         - name: VLLM_NIXL_SIDE_CHANNEL_HOST
           value: qwen-prefiller
         - name: VLLM_NIXL_SIDE_CHANNEL_PORT
-          value: 5557
+          value: "5557"
         - name: HF_HUB_CACHE
           value: /vllm-workspace/models
+        - name: VLLM_LOGGING_LEVEL
+          value: DEBUG
       ports:
         - containerPort: 55557
           protocol: TCP
