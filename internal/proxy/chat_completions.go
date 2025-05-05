@@ -232,6 +232,7 @@ func (s *Server) runNIXLProtocol(w http.ResponseWriter, r *http.Request, prefill
 		completionRequest[RequestFieldStream] = streamValue
 	}
 
+	completionRequest[RequestFieldDoRemotePrefill] = true
 	completionRequest[RequestFieldRemoteBlockIDs] = blockIDs
 	completionRequest[RequestFieldRemoteEngineID] = engineID
 	completionRequest[RequestFieldRemoteHost] = remoteHost
