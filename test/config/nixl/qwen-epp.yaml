@@ -18,7 +18,7 @@ spec:
             - -poolName
             - qwen2-0-5b
             - -poolNamespace
-            - e2e-pd
+            - serverless-workstream
             - -v
             - "4"
             - --zap-encoder
@@ -40,7 +40,7 @@ spec:
             failureThreshold: 3
             grpc:
               port: 9003
-              service: inference-extension
+              service: qwen2-0-5b-epp
             initialDelaySeconds: 5
             periodSeconds: 10
             successThreshold: 1
