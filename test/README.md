@@ -1,5 +1,35 @@
 # Testing
 
+## NIXLConnector Testing
+
+The [nixl](config/overlays/fmass/nixl) directory contains the configuration files deploying
+a simple 1P1D sample application using the NIXL connector.
+
+To deploy this application in the `llm-d` cluster, run this command:
+
+
+```
+$ kustomize build test/config/overlays/fmass/nixl | oc apply -f -
+```
+
+Port-forward the inference-gateway port on your local machine:
+
+```
+$ oc port-forward svc/inference-gateway 8000:80
+```
+
+Wait a bit (up to 10mn) for the pods to be running, and, in another terminal, send a request:
+
+```
+$ curl  http://localhost:8000/v1/completions \
+      -H "Content-Type: application/json" \
+      -d '{
+        "model": "Qwen/Qwen2-0.5B",
+        "prompt": "Question: Greta worked 40 hours and was paid $12 per hour. Her friend Lisa earned $15 per hour at her job. How many hours would Lisa have to work to equal Greta's earnings for 40 hours?",
+        "max_tokens": 200
+      }'
+```
+
 ## LMCache KVConnector Testing
 
 The [lmcache](config/lmcache) directory contains the configuration files deploying a simple 1P/1D application
