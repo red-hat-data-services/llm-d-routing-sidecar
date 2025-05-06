@@ -35,11 +35,9 @@ spec:
           value: "0"
         - name: UCX_TLS
           value: "cuda_ipc,cuda_copy,tcp"
-        # - name: NIXL_ROLE
-        #   value: SENDER
         - name: VLLM_NIXL_SIDE_CHANNEL_PORT
           value: "5557"
-        - name: VLLM_NIXL_SIZE_CHANNEL_HOST
+        - name: VLLM_NIXL_SIDE_CHANNEL_HOST
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
