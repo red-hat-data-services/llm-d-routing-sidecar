@@ -253,12 +253,12 @@ var _ = Describe("Reverse Proxy", func() {
 
 				By("sending a /v1/chat/completions request with prefill header")
 				body := `{
-        		"model": "Qwen/Qwen2-0.5B",
-	        	"messages": [
+        			"model": "Qwen/Qwen2-0.5B",
+	        		"messages": [
     			      {"role": "user", "content": "Hello"}
-        		],
-        		"max_tokens": 50
-			}`
+        			],
+        			"max_tokens": 50
+				}`
 
 				req, err := http.NewRequest(http.MethodPost, proxyBaseAddr+ChatCompletionsPath, strings.NewReader(body))
 				Expect(err).ToNot(HaveOccurred())
@@ -274,6 +274,7 @@ var _ = Describe("Reverse Proxy", func() {
 
 				Expect(prq1).To(HaveKeyWithValue(RequestFieldDoRemoteDecode, true))
 				Expect(prq1).To(HaveKeyWithValue("stream", false))
+				Expect(prq1).ToNot(HaveKey("stream_options"))
 
 				Expect(len(prefillHandler.CompletionResponses)).To(BeNumerically("==", 1))
 				prp1 := prefillHandler.CompletionResponses[0]

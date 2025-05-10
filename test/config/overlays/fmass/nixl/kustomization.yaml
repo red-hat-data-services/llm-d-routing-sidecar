@@ -8,8 +8,8 @@ images:
     newName: quay.io/llm-d/llm-d-routing-sidecar
     newTag: 0.0.5
   - name: vllm-openai
-    newName: quay.io/lvillard/vllm-d
-    newTag: nixl
+    newName: quay.io/llm-d/llm-d
+    newTag: 0.0.6
 
 #    newName: quay.io/llm-d/llm-d-dev
 #    newTag: vllm-nixl-0.0.6

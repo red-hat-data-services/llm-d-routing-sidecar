@@ -40,6 +40,7 @@ const (
 	RequestFieldRemoteHost      = "remote_host"
 	RequestFieldRemotePort      = "remote_port"
 	RequestFieldStream          = "stream"
+	RequestFieldStreamOptions   = "stream_options"
 
 	ConnectorNIXL    = "nixl"
 	ConnectorLMCache = "lmcache"
