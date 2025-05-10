@@ -146,9 +146,11 @@ func (s *Server) runNIXLProtocol(w http.ResponseWriter, r *http.Request, prefill
 	preq.Header.Add(RequestHeaderRequestID, uuidStr)
 
 	streamValue, streamOk := completionRequest[RequestFieldStream]
+	streamOptionsValue, streamOptionsOk := completionRequest[RequestFieldStreamOptions]
 
 	completionRequest[RequestFieldDoRemoteDecode] = true
 	completionRequest[RequestFieldStream] = false
+	delete(completionRequest, RequestFieldStreamOptions)
 
 	pbody, err := json.Marshal(completionRequest)
 	if err != nil {
@@ -230,6 +232,9 @@ func (s *Server) runNIXLProtocol(w http.ResponseWriter, r *http.Request, prefill
 	delete(completionRequest, RequestFieldStream)
 	if streamOk {
 		completionRequest[RequestFieldStream] = streamValue
+	}
+	if streamOptionsOk {
+		completionRequest[RequestFieldStreamOptions] = streamOptionsValue
 	}
 
 	completionRequest[RequestFieldDoRemotePrefill] = true
