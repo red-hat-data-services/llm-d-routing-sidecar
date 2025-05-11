@@ -4,8 +4,10 @@ metadata:
   name: qwen2-0-5b-epp
 spec:
   ports:
-    - port: 9002
-      protocol: TCP
+    - protocol: TCP
+      port: 9002
+      targetPort: 9002
+      appProtocol: http2
+  type: ClusterIP
   selector:
-    app: qwen2-0-5b
-  type: NodePort
+    app: qwen2-0-5b-epp

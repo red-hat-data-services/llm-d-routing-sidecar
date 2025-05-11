@@ -4,8 +4,8 @@ metadata:
   name: qwen-decoder
   labels:
     app: qwen-decoder
-    llmd.org/inferenceServing: "true"
-    llmd.org/model: "qwen2-0-5b"
+    llm-d.ai/inferenceServing: "true"
+    llm-d.ai/model: "qwen2-0-5b"
     llm-d.ai/role: "decode"
 spec:
   affinity:
@@ -26,7 +26,7 @@ spec:
       args:
         - "--port=8000"
         - "--vllm-port=8200"
-        - "--connector=nixl"
+        - "--connector=nixlv2"
       ports:
         - containerPort: 8000
           protocol: TCP
@@ -50,9 +50,7 @@ spec:
           value: "0"
         - name: UCX_TLS
           value: "cuda_ipc,cuda_copy,tcp"
-        # - name: NIXL_ROLE
-        #   value: RECVER
-        - name: VLLM_NIXL_SIZE_CHANNEL_HOST
+        - name: VLLM_NIXL_SIDE_CHANNEL_HOST
           valueFrom:
             fieldRef:
               fieldPath: status.podIP

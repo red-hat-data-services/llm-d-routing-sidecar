@@ -34,7 +34,7 @@ func main() {
 
 	flag.StringVar(&port, "port", "8000", "the port the sidecar is listening on")
 	flag.StringVar(&vLLMPort, "vllm-port", "8001", "the port vLLM is listening on")
-	flag.StringVar(&connector, "connector", "nixl", "the P/D connector being used. Either nixl or lmcache")
+	flag.StringVar(&connector, "connector", "nixl", "the P/D connector being used. Either nixl, nixlv2 or lmcache")
 	klog.InitFlags(nil)
 	flag.Parse()
 
@@ -44,8 +44,8 @@ func main() {
 	ctx := signals.SetupSignalHandler(context.Background())
 	logger := klog.FromContext(ctx)
 
-	if connector != proxy.ConnectorNIXL && connector != proxy.ConnectorLMCache {
-		logger.Info("Error: --connector must either be 'nixl' or 'lmcache'")
+	if connector != proxy.ConnectorNIXLV1 && connector != proxy.ConnectorNIXLV2 && connector != proxy.ConnectorLMCache {
+		logger.Info("Error: --connector must either be 'nixl', 'nixlv2' or 'lmcache'")
 		return
 	}
 	logger.Info("p/d connector validated", "connector", connector)

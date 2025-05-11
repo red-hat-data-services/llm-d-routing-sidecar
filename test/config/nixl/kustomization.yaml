@@ -1,9 +1,6 @@
 resources:
   - qwen-decoder-pod.yaml
   - qwen-prefiller-pod.yaml
-  - qwen-decoder-svc.yaml
-  - qwen-prefiller-svc.yaml
-  # - qwen-both-pod.yaml
   - inferencemodel.yaml
   - inferencepool.yaml
   - qwen-epp.yaml
