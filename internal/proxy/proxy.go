@@ -33,8 +33,8 @@ const (
 	RequestHeaderPrefillURL = "x-prefiller-url"
 	RequestHeaderRequestID  = "x-request-id"
 
-	RequestFieldKVTransferParams = "kv_transfer_params "
-	RequestFieldMaxTokens        = "max_tokens "
+	RequestFieldKVTransferParams = "kv_transfer_params"
+	RequestFieldMaxTokens        = "max_tokens"
 	RequestFieldDoRemotePrefill  = "do_remote_prefill"
 	RequestFieldDoRemoteDecode   = "do_remote_decode"
 	RequestFieldRemoteBlockIDs   = "remote_block_ids"
