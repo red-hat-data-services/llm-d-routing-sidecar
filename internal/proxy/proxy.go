@@ -33,16 +33,19 @@ const (
 	RequestHeaderPrefillURL = "x-prefiller-url"
 	RequestHeaderRequestID  = "x-request-id"
 
-	RequestFieldDoRemotePrefill = "do_remote_prefill"
-	RequestFieldDoRemoteDecode  = "do_remote_decode"
-	RequestFieldRemoteBlockIDs  = "remote_block_ids"
-	RequestFieldRemoteEngineID  = "remote_engine_id"
-	RequestFieldRemoteHost      = "remote_host"
-	RequestFieldRemotePort      = "remote_port"
-	RequestFieldStream          = "stream"
-	RequestFieldStreamOptions   = "stream_options"
+	RequestFieldKVTransferParams = "kv_transfer_params "
+	RequestFieldMaxTokens        = "max_tokens "
+	RequestFieldDoRemotePrefill  = "do_remote_prefill"
+	RequestFieldDoRemoteDecode   = "do_remote_decode"
+	RequestFieldRemoteBlockIDs   = "remote_block_ids"
+	RequestFieldRemoteEngineID   = "remote_engine_id"
+	RequestFieldRemoteHost       = "remote_host"
+	RequestFieldRemotePort       = "remote_port"
+	RequestFieldStream           = "stream"
+	RequestFieldStreamOptions    = "stream_options"
 
-	ConnectorNIXL    = "nixl"
+	ConnectorNIXLV1  = "nixl"
+	ConnectorNIXLV2  = "nixlv2"
 	ConnectorLMCache = "lmcache"
 )
 
@@ -69,10 +72,12 @@ func NewProxy(port string, decodeURL *url.URL, connector string) *Server {
 	switch connector {
 	case ConnectorLMCache:
 		server.runConnectorProtocol = server.runLMCacheProtocol
-	case ConnectorNIXL:
+	case ConnectorNIXLV1:
+		server.runConnectorProtocol = server.runNIXLProtocolV1
+	case ConnectorNIXLV2:
 		fallthrough
 	default:
-		server.runConnectorProtocol = server.runNIXLProtocol
+		server.runConnectorProtocol = server.runNIXLProtocolV2
 	}
 
 	return server
