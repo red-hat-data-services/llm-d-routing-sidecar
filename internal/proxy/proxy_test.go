@@ -83,11 +83,11 @@ var _ = Describe("Reverse Proxy", func() {
 			Entry("when the path is /score and protocol is LMCache", "/score", ConnectorLMCache),
 			Entry("when the path is /healthz and protocol is LMCache", "/healthz", ConnectorLMCache),
 
-			Entry("when the path is /v1/chat/completions and protocol is NIXL", "/v1/chat/completions", ConnectorNIXL),
-			Entry("when the path is /v1/completions and protocol is NIXL", "/v1/completions", ConnectorNIXL),
-			Entry("when the path is /v1/embeddings and protocol is NIXL", "/v1/embeddings", ConnectorNIXL),
-			Entry("when the path is /score and protocol is NIXL", "/score", ConnectorNIXL),
-			Entry("when the path is /healthz and protocol is NIXL", "/healthz", ConnectorNIXL),
+			Entry("when the path is /v1/chat/completions and protocol is NIXL", "/v1/chat/completions", ConnectorNIXLV1),
+			Entry("when the path is /v1/completions and protocol is NIXL", "/v1/completions", ConnectorNIXLV1),
+			Entry("when the path is /v1/embeddings and protocol is NIXL", "/v1/embeddings", ConnectorNIXLV1),
+			Entry("when the path is /score and protocol is NIXL", "/score", ConnectorNIXLV1),
+			Entry("when the path is /healthz and protocol is NIXL", "/healthz", ConnectorNIXLV1),
 		)
 	})
 
@@ -227,14 +227,14 @@ var _ = Describe("Reverse Proxy", func() {
 			)
 		})
 
-		When("using NIXL connector", func() {
+		When("using NIXL connector V1", func() {
 			var proxy *Server
 
 			BeforeEach(func() {
-				proxy = NewProxy("0", decodeURL, ConnectorNIXL) // port 0 to automatically choose one that's available.
+				proxy = NewProxy("0", decodeURL, ConnectorNIXLV1) // port 0 to automatically choose one that's available.
 
-				decodeHandler.Connector = ConnectorNIXL
-				prefillHandler.Connector = ConnectorNIXL
+				decodeHandler.Connector = ConnectorNIXLV1
+				prefillHandler.Connector = ConnectorNIXLV1
 			})
 
 			It("should successfully send request to 1. prefill 2. decode with the right fields", func() {
