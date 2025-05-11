@@ -6,7 +6,7 @@ resources:
 images:
   - name: routing-proxy
     newName: quay.io/llm-d/llm-d-routing-sidecar-dev
-    digest: sha256:fb25f7e40829b3f847bc1bffe4a3365fd410447f00ab4acebfbe609ed3163e90
+    newTag: 0.0.7
   - name: vllm-openai
     newName: quay.io/llm-d/llm-d-dev
     digest: sha256:399fb0dd3bdec5eec944785ab70b701c37376cce769a1e6d358663b881685601

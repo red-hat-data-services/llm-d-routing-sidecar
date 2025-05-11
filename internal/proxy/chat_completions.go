@@ -18,7 +18,6 @@ package proxy
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -151,7 +150,12 @@ func (s *Server) runNIXLProtocolV2(w http.ResponseWriter, r *http.Request, prefi
 	maxTokensValue, maxTokensOk := completionRequest[RequestFieldMaxTokens]
 
 	completionRequest[RequestFieldKVTransferParams] = map[string]any{
-		RequestFieldDoRemoteDecode: true,
+		RequestFieldDoRemoteDecode:  true,
+		RequestFieldDoRemotePrefill: false,
+		RequestFieldRemoteEngineID:  nil,
+		RequestFieldRemoteBlockIDs:  nil,
+		RequestFieldRemoteHost:      nil,
+		RequestFieldRemotePort:      nil,
 	}
 
 	completionRequest[RequestFieldStream] = false
@@ -200,17 +204,12 @@ func (s *Server) runNIXLProtocolV2(w http.ResponseWriter, r *http.Request, prefi
 
 	pKVTransferParams, ok := prefillerResponse[RequestFieldKVTransferParams]
 	if !ok {
-		err := errors.New("missing 'kv_transfer_params' field in prefiller response")
-		s.logger.Error(err, "failed to process request")
-		if err := errorBadGateway(err, w); err != nil {
-			s.logger.Error(err, "failed to send error response to client")
-		}
-		return
+		s.logger.Info("warning: missing 'kv_transfer_params' field in prefiller response")
 	}
 
 	s.logger.Info("received prefiller response", RequestFieldKVTransferParams, pKVTransferParams)
 
-	// 2. Prepare decode request
+	// 1. Prepare decode request
 	dreq := r.Clone(ctx)
 
 	dreq.Header.Add(RequestHeaderRequestID, uuidStr)
@@ -226,10 +225,7 @@ func (s *Server) runNIXLProtocolV2(w http.ResponseWriter, r *http.Request, prefi
 	if maxTokensOk {
 		completionRequest[RequestFieldMaxTokens] = maxTokensValue
 	}
-
-	pKVTransferParamsMap := pKVTransferParams.(map[string]any)
-	completionRequest[RequestFieldKVTransferParams] = pKVTransferParamsMap
-	pKVTransferParamsMap[RequestFieldDoRemotePrefill] = true
+	completionRequest[RequestFieldKVTransferParams] = pKVTransferParams
 
 	dbody, err := json.Marshal(completionRequest)
 	if err != nil {
