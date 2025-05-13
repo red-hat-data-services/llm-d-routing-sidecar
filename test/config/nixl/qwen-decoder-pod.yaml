@@ -24,9 +24,10 @@ spec:
         allowPrivilegeEscalation: false
         runAsNonRoot: true
       args:
-        - "--port=8000"
-        - "--vllm-port=8200"
-        - "--connector=nixlv2"
+        - "-port=8000"
+        - "-vllm-port=8200"
+        - "-connector=nixlv2"
+        - "-v=6"
       ports:
         - containerPort: 8000
           protocol: TCP

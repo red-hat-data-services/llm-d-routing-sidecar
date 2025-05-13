@@ -103,12 +103,16 @@ var _ = Describe("Reverse Proxy", func() {
 			_, ctx = ktesting.NewTestContext(GinkgoT())
 
 			// Decoder
-			decodeHandler = &mock.ChatCompletionHandler{}
+			decodeHandler = &mock.ChatCompletionHandler{
+				Role: mock.RoleDecode,
+			}
 			decodeBackend = httptest.NewServer(decodeHandler)
 			DeferCleanup(decodeBackend.Close)
 
 			// Prefiller
-			prefillHandler = &mock.ChatCompletionHandler{}
+			prefillHandler = &mock.ChatCompletionHandler{
+				Role: mock.RolePrefill,
+			}
 			prefillBackend = httptest.NewServer(prefillHandler)
 			DeferCleanup(prefillBackend.Close)
 
