@@ -34,9 +34,9 @@ spec:
               value: "10"
             #   - name: KVCACHE_INDEXER_REDIS_ADDR
             #     value: vllm-p2p-lookup-server-service.e2e-solution.svc.cluster.local:8100
-            #image: quay.io/llm-d/llm-d-gateway-api-inference-extension-dev:0.0.5
-            #image: quay.io/llm-d/llm-d-inference-scheduler:0.0.1
-          image: quay.io/llm-d/llm-d-inference-scheduler-dev@sha256:af93219a8c7fcc37444aa69845bf15bc1d948ec9adba9db44bd3f55d301bbe14
+            #image: ghcr.io/llm-d/llm-d-gateway-api-inference-extension-dev:0.0.5
+            #image: ghcr.io/llm-d/llm-d-inference-scheduler:0.0.1
+          image: ghcr.io/llm-d/llm-d-inference-scheduler-dev@sha256:af93219a8c7fcc37444aa69845bf15bc1d948ec9adba9db44bd3f55d301bbe14
           imagePullPolicy: Always
           name: epp
           ports:
