@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neuralmagic/llm-d-routing-sidecar/test/mock"
+	"github.com/llm-d/llm-d-routing-sidecar/test/mock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/klog/v2/ktesting"

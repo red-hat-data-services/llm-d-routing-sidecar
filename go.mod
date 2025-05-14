@@ -1,4 +1,4 @@
-module github.com/neuralmagic/llm-d-routing-sidecar
+module github.com/llm-d/llm-d-routing-sidecar
 
 go 1.24.2
 

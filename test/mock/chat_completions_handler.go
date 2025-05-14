@@ -130,8 +130,8 @@ func (cc *ChatCompletionHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 
 	var completionResponse map[string]any
 	if err := json.Unmarshal([]byte(rawResponse), &completionResponse); err != nil {
-		w.Write([]byte(err.Error())) //nolint:all
 		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error())) //nolint:all
 		return
 	}
 
