@@ -22,7 +22,7 @@ $ podman run -p 8001:8000 --device nvidia.com/gpu=0 -v $HOME/models:/models \
     -e VLLM_NIXL_SIDE_CHANNEL_PORT=8001 \
     -e VLLM_NIXL_SIDE_CHANNEL_HOST=localhost \
     -e VLLM_LOGGING_LEVEL=DEBUG \
-    -e HF_HOME=/models quay.io/llm-d/llm-d:0.0.7 --model facebook/opt-125m \
+    -e HF_HOME=/models ghcr.io/llm-d/llm-d:0.0.7 --model facebook/opt-125m \
     --kv-transfer-config='{"kv_connector":"NixlConnector","kv_role":"kv_both"}'
 ```
 
@@ -33,9 +33,12 @@ $ podman run -p 8002:8000 --device nvidia.com/gpu=1 -v $HOME/models:/models \
     -e VLLM_NIXL_SIDE_CHANNEL_PORT=8002 \
     -e VLLM_NIXL_SIDE_CHANNEL_HOST=localhost \
     -e VLLM_LOGGING_LEVEL=DEBUG \
-    -e HF_HOME=/models quay.io/llm-d/llm-d:0.0.7 --model facebook/opt-125m \
+    -e HF_HOME=/models ghcr.io/llm-d/llm-d:0.0.7 --model facebook/opt-125m \
     --kv-transfer-config='{"kv_connector":"NixlConnector","kv_role":"kv_both"}'
 ```
+
+
+2. Clone and start the routing proxy
 
 In another terminal, clone this repository and build the routing proxy:
 
@@ -50,6 +53,8 @@ In the same terminal, start the routing proxy:
 ```
 $ ./bin/llm-d-routing-sidecar -port=8000 -vllm-port=8001 -connector=nixlv2
 ```
+
+3. Send a request
 
 Finally, in another terminal, send a chat completions requests to the router proxy on port 8000 and tell it to use the prefiller on port 8002:
 
