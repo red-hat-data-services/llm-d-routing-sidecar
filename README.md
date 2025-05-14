@@ -8,12 +8,11 @@ to the prefill worker specified in the `x-prefiller-url` HTTP request header.
 ### Requirements
 
 - a container engine (docker, podman, etc...)
-- a server with GPUs
--
+- a server with at least 2 GPUs
 
 ### Quick Start (From source)
 
-1. Start two vLLM servers with P/D enabled
+1. Start two vLLM servers with P/D enabled via the NIXLConnector.
 
 In one terminal, run this command to start the decoder:
 
@@ -38,7 +37,7 @@ $ podman run -p 8002:8000 --device nvidia.com/gpu=1 -v $HOME/models:/models \
 ```
 
 
-2. Clone and start the routing proxy
+2. Clone and start the routing proxy.
 
 In another terminal, clone this repository and build the routing proxy:
 
@@ -54,9 +53,9 @@ In the same terminal, start the routing proxy:
 $ ./bin/llm-d-routing-sidecar -port=8000 -vllm-port=8001 -connector=nixlv2
 ```
 
-3. Send a request
+3. Send a request.
 
-Finally, in another terminal, send a chat completions requests to the router proxy on port 8000 and tell it to use the prefiller on port 8002:
+Finally, in another terminal, send a chat completions request to the router proxy on port 8000 and tell it to use the prefiller on port 8002:
 
 ```
 $ curl  http://localhost:8000/v1/completions \
@@ -91,3 +90,10 @@ Usage of ./bin/llm-d-routing-sidecar:
         the port vLLM is listening on (default "8001")
 ...
 ```
+
+> **Note:** lmcache connector is deprecated. 
+
+
+## License
+
+This project is licensed under the Apache License 2.0. See the [LICENSE](./LICENSE) file for details.
