@@ -91,7 +91,7 @@ Usage of ./bin/llm-d-routing-sidecar:
 ...
 ```
 
-> **Note:** lmcache connector is deprecated. 
+> **Note:** lmcache connector is deprecated.
 
 
 ## License
