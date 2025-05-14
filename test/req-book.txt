@@ -15,9 +15,6 @@
         ]
       }'
 
-
-lm_eval --model local-completions --tasks gsm8k --model_args model="Qwen/Qwen2-0.5B",base_url=http://127.0.0.1:8000/v1/completions,num_concurrent=5,max_retries=3,tokenized_requests=False
-
  curl  http://localhost:8000/v1/completions \
       -H "Content-Type: application/json" \
        -d '{
@@ -43,3 +40,6 @@ curl http://localhost:8000/v1/completions \
     "max_tokens": 500,
     "temperature": 0
   }' | jq
+
+
+lm_eval --model local-completions --tasks gsm8k --model_args model="Qwen/Qwen2-0.5B",base_url=http://127.0.0.1:8000/v1/completions,num_concurrent=5,max_retries=3,tokenized_requests=False

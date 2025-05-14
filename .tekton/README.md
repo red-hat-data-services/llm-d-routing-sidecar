@@ -128,4 +128,3 @@ After deployment, the pipeline:
 - Provides a single source of truth for version and repository info
 - Enables deterministic builds and controlled releases
 - Simplifies debugging and auditing across environments
-
