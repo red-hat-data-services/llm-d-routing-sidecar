@@ -17,25 +17,30 @@ to the prefill worker specified in the `x-prefiller-url` HTTP request header.
 In one terminal, run this command to start the decoder:
 
 ```
-$ podman run -p 8001:8000 --device nvidia.com/gpu=0 -v $HOME/models:/models \
-    -e VLLM_NIXL_SIDE_CHANNEL_PORT=8001 \
+$ podman run --network host --device nvidia.com/gpu=0 -v $HOME/models:/models \
+    -e UCX_TLS="cuda_ipc,cuda_copy,tcp" \
+    -e VLLM_NIXL_SIDE_CHANNEL_PORT=5555 \
     -e VLLM_NIXL_SIDE_CHANNEL_HOST=localhost \
     -e VLLM_LOGGING_LEVEL=DEBUG \
-    -e HF_HOME=/models ghcr.io/llm-d/llm-d:0.0.7 --model facebook/opt-125m \
+    -e HF_HOME=/models ghcr.io/llm-d/llm-d:0.0.8 --model Qwen/Qwen3-0.6B \
+    --enforce-eager \
+    --port 8001 \
     --kv-transfer-config='{"kv_connector":"NixlConnector","kv_role":"kv_both"}'
 ```
 
 In another terminal, run this command to start the prefiller:
 
 ```
-$ podman run -p 8002:8000 --device nvidia.com/gpu=1 -v $HOME/models:/models \
-    -e VLLM_NIXL_SIDE_CHANNEL_PORT=8002 \
+$ podman run --network host --device nvidia.com/gpu=1 -v $HOME/models:/models \
+    -e UCX_TLS="cuda_ipc,cuda_copy,tcp" \
+    -e VLLM_NIXL_SIDE_CHANNEL_PORT=5556 \
     -e VLLM_NIXL_SIDE_CHANNEL_HOST=localhost \
     -e VLLM_LOGGING_LEVEL=DEBUG \
-    -e HF_HOME=/models ghcr.io/llm-d/llm-d:0.0.7 --model facebook/opt-125m \
+    -e HF_HOME=/models ghcr.io/llm-d/llm-d:0.0.8 --model Qwen/Qwen3-0.6B \
+    --enforce-eager \
+    --port 8002 \
     --kv-transfer-config='{"kv_connector":"NixlConnector","kv_role":"kv_both"}'
 ```
-
 
 2. Clone and start the routing proxy.
 
@@ -62,10 +67,31 @@ $ curl  http://localhost:8000/v1/completions \
       -H "Content-Type: application/json" \
       -H "x-prefiller-url: http://localhost:8002" \
        -d '{
-        "model": "facebook/opt-125m",
+        "model": "Qwen/Qwen3-0.6B",
         "prompt": "Author-contribution statements and acknowledgements in research papers should state clearly and specifically whether, and to what extent, the authors used AI technologies such as ChatGPT in the preparation of their manuscript and analysis. They should also indicate which LLMs were used. This will alert editors and reviewers to scrutinize manuscripts more carefully for potential biases, inaccuracies and improper source crediting. Likewise, scientific journals should be transparent about their use of LLMs, for example when selecting submitted manuscripts. Mention the large language model based product mentioned in the paragraph above:"
       }'
 ```
+
+4. Verification
+
+Observe the request is processed by both the prefiller and then the decoder:
+
+*Prefiller logs (trimmed for clarity purpose):*
+
+```
+...
+Received request cmpl-386a7566-31a0-11f0-b783-0200017aca02-0: prompt: ...
+...
+NIXLConnector request_finished, request_status=7 ...
+```
+
+*Decoder logs (trimmed for clarity purpose):*
+```
+...
+Received request cmpl-386a7566-31a0-11f0-b783-0200017aca02-0: prompt: ...
+...
+DEBUG 05-15 15:21:06 [nixl_connector.py:646] start_load_kv for request cmpl-386a7566-31a0-11f0-b783-0200017aca02-0 from remote engine c53ac287-36cd-4b52-811f-16de4e4bd3a5. Num local_block_ids: 6. Num remote_block_ids: 6
+...
 
 ## Development
 

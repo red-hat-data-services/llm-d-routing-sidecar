@@ -6,13 +6,10 @@ resources:
 images:
   - name: routing-proxy
     newName: ghcr.io/llm-d/llm-d-routing-sidecar
-    digest: sha256:7f3db0d03f3b3b16ec2a0e8d0d855bb7db83ef8d670dd9027f194e772a87856b
+    newTag: 0.0.6
   - name: vllm-openai
     newName: ghcr.io/llm-d/llm-d
-    digest: sha256:cd3f9de3c6809233ec76606cac18a4fda949592f721bfa8d44cf07afff6bfa38
-
-#    newName: ghcr.io/llm-d/llm-d-dev
-#    newTag: vllm-nixl-0.0.6
+    newTag: 0.0.8
 
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
