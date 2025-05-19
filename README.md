@@ -1,6 +1,6 @@
 # llm-d-routing-sidecar
 
-This project provides a reverse proxy redirecting incoming requests to the prefill worker specified in the `x-prefiller-url` HTTP request header.
+This project provides a reverse proxy redirecting incoming requests to the prefill worker specified in the `x-prefiller-url` HTTP request header. This project is experimental and will be removed in an upcoming iteration of the llm-d P/D disaggregation architecture.
 
 ## Getting Started
 
