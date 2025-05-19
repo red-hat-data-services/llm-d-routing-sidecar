@@ -24,7 +24,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/neuralmagic/llm-d-routing-sidecar/test/utils"
+	"github.com/llm-d/llm-d-routing-sidecar/test/utils"
 )
 
 const (

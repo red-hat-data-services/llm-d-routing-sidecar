@@ -20,8 +20,8 @@ import (
 	"flag"
 	"net/url"
 
-	"github.com/neuralmagic/llm-d-routing-sidecar/internal/proxy"
-	"github.com/neuralmagic/llm-d-routing-sidecar/internal/signals"
+	"github.com/llm-d/llm-d-routing-sidecar/internal/proxy"
+	"github.com/llm-d/llm-d-routing-sidecar/internal/signals"
 	"k8s.io/klog/v2"
 )
 

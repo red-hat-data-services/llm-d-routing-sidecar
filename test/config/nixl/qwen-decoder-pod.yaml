@@ -24,9 +24,10 @@ spec:
         allowPrivilegeEscalation: false
         runAsNonRoot: true
       args:
-        - "--port=8000"
-        - "--vllm-port=8200"
-        - "--connector=nixlv2"
+        - "-port=8000"
+        - "-vllm-port=8200"
+        - "-connector=nixlv2"
+        - "-v=6"
       ports:
         - containerPort: 8000
           protocol: TCP
@@ -44,7 +45,9 @@ spec:
         - "8200"
         - "--enforce-eager"
         - "--kv-transfer-config"
-        - '{"kv_connector":"NixlConnector","kv_role":"kv_both"}'
+        - '{"kv_connector":"MultiConnector","kv_role":"kv_both","kv_connector_extra_config":{"connectors":[{"kv_connector":"NixlConnector", "kv_role":"kv_both"},{"kv_connector":"LMCacheConnectorV1","kv_role":"kv_both"}]}}'
+        # -  '{"kv_connector":"MultiConnector","kv_role":"kv_both","kv_connector_extra_config":{"connectors":[{"kv_connector":"NixlConnector", "kv_role":"kv_both"}]}}'
+        # - '{"kv_connector":"NixlConnector","kv_role":"kv_both"}'
       env:
         - name: CUDA_VISIBLE_DEVICES
           value: "0"

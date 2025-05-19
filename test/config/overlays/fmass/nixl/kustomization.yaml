@@ -5,14 +5,11 @@ resources:
 
 images:
   - name: routing-proxy
-    newName: quay.io/llm-d/llm-d-routing-sidecar-dev
-    newTag: 0.0.7
+    newName: ghcr.io/llm-d/llm-d-routing-sidecar
+    newTag: 0.0.6
   - name: vllm-openai
-    newName: quay.io/llm-d/llm-d-dev
-    digest: sha256:399fb0dd3bdec5eec944785ab70b701c37376cce769a1e6d358663b881685601
-
-#    newName: quay.io/llm-d/llm-d-dev
-#    newTag: vllm-nixl-0.0.6
+    newName: ghcr.io/llm-d/llm-d
+    newTag: 0.0.8
 
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
