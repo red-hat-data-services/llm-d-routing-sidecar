@@ -62,24 +62,24 @@ func (s *Server) runNIXLProtocolV2(w http.ResponseWriter, r *http.Request, prefi
 	ctx := r.Context()
 	preq := r.Clone(ctx)
 
-	preq.Header.Add(RequestHeaderRequestID, uuidStr)
+	preq.Header.Add(requestHeaderRequestID, uuidStr)
 
-	streamValue, streamOk := completionRequest[RequestFieldStream]
-	streamOptionsValue, streamOptionsOk := completionRequest[RequestFieldStreamOptions]
-	maxTokensValue, maxTokensOk := completionRequest[RequestFieldMaxTokens]
+	streamValue, streamOk := completionRequest[requestFieldStream]
+	streamOptionsValue, streamOptionsOk := completionRequest[requestFieldStreamOptions]
+	maxTokensValue, maxTokensOk := completionRequest[requestFieldMaxTokens]
 
-	completionRequest[RequestFieldKVTransferParams] = map[string]any{
-		RequestFieldDoRemoteDecode:  true,
-		RequestFieldDoRemotePrefill: false,
-		RequestFieldRemoteEngineID:  nil,
-		RequestFieldRemoteBlockIDs:  nil,
-		RequestFieldRemoteHost:      nil,
-		RequestFieldRemotePort:      nil,
+	completionRequest[requestFieldKVTransferParams] = map[string]any{
+		requestFieldDoRemoteDecode:  true,
+		requestFieldDoRemotePrefill: false,
+		requestFieldRemoteEngineID:  nil,
+		requestFieldRemoteBlockIDs:  nil,
+		requestFieldRemoteHost:      nil,
+		requestFieldRemotePort:      nil,
 	}
 
-	completionRequest[RequestFieldStream] = false
-	delete(completionRequest, RequestFieldStreamOptions)
-	completionRequest[RequestFieldMaxTokens] = 1
+	completionRequest[requestFieldStream] = false
+	delete(completionRequest, requestFieldStreamOptions)
+	completionRequest[requestFieldMaxTokens] = 1
 
 	pbody, err := json.Marshal(completionRequest)
 	if err != nil {
@@ -121,32 +121,32 @@ func (s *Server) runNIXLProtocolV2(w http.ResponseWriter, r *http.Request, prefi
 
 	// 3. Verify response
 
-	pKVTransferParams, ok := prefillerResponse[RequestFieldKVTransferParams]
+	pKVTransferParams, ok := prefillerResponse[requestFieldKVTransferParams]
 	if !ok {
 		s.logger.Info("warning: missing 'kv_transfer_params' field in prefiller response")
 	}
 
-	s.logger.V(5).Info("received prefiller response", RequestFieldKVTransferParams, pKVTransferParams)
+	s.logger.V(5).Info("received prefiller response", requestFieldKVTransferParams, pKVTransferParams)
 
 	// Decode Stage
 
 	// 1. Prepare decode request
 	dreq := r.Clone(ctx)
 
-	dreq.Header.Add(RequestHeaderRequestID, uuidStr)
+	dreq.Header.Add(requestHeaderRequestID, uuidStr)
 
-	delete(completionRequest, RequestFieldStream)
+	delete(completionRequest, requestFieldStream)
 	if streamOk {
-		completionRequest[RequestFieldStream] = streamValue
+		completionRequest[requestFieldStream] = streamValue
 	}
 	if streamOptionsOk {
-		completionRequest[RequestFieldStreamOptions] = streamOptionsValue
+		completionRequest[requestFieldStreamOptions] = streamOptionsValue
 	}
-	delete(completionRequest, RequestFieldMaxTokens)
+	delete(completionRequest, requestFieldMaxTokens)
 	if maxTokensOk {
-		completionRequest[RequestFieldMaxTokens] = maxTokensValue
+		completionRequest[requestFieldMaxTokens] = maxTokensValue
 	}
-	completionRequest[RequestFieldKVTransferParams] = pKVTransferParams
+	completionRequest[requestFieldKVTransferParams] = pKVTransferParams
 
 	dbody, err := json.Marshal(completionRequest)
 	if err != nil {

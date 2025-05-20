@@ -21,12 +21,15 @@ import (
 )
 
 var (
+	// ChatCompletionsPath is the OpenAI chat completions path
 	ChatCompletionsPath = "/v1/chat/completions"
-	CompletionsPath     = "/v1/completions"
+
+	// CompletionsPath is the legacy completions path
+	CompletionsPath = "/v1/completions"
 )
 
-func (s *Server) ChatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
-	prefillPodURL := r.Header.Get(RequestHeaderPrefillURL)
+func (s *Server) chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
+	prefillPodURL := r.Header.Get(requestHeaderPrefillURL)
 
 	if prefillPodURL == "" {
 		s.logger.V(4).Info("skip disagreggated prefill")

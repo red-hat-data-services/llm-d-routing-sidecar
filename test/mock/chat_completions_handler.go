@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package mock offers a mock CompletionHandler for tests
 package mock
 
 import (
@@ -24,14 +25,18 @@ import (
 	"sync/atomic"
 )
 
+// Role of the mocked handler
 type Role string
 
 const (
-	RoleDecode  Role = "decode"
+	// RoleDecode indicates the handler is a decoder
+	RoleDecode Role = "decode"
+
+	// RolePrefill indicates the handler is a prefiller
 	RolePrefill Role = "prefill"
 )
 
-// ChatCompletion is a simple chat completion mock handler
+// ChatCompletionHandler is a simple chat completion mock handler
 type ChatCompletionHandler struct {
 	Connector           string
 	Role                Role
