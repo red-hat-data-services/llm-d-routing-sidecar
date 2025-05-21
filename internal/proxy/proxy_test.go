@@ -26,8 +26,8 @@ import (
 	"time"
 
 	"github.com/llm-d/llm-d-routing-sidecar/test/mock"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/v2" // nolint:revive
+	. "github.com/onsi/gomega"    // nolint:revive
 	"k8s.io/klog/v2/ktesting"
 )
 
@@ -40,7 +40,7 @@ var _ = Describe("Reverse Proxy", func() {
 			func(path string, connector string) {
 				_, ctx := ktesting.NewTestContext(GinkgoT())
 
-				ackHandlerFn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				ackHandlerFn := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.WriteHeader(200)
 				})
 
@@ -157,31 +157,31 @@ var _ = Describe("Reverse Proxy", func() {
 
 				req, err := http.NewRequest(http.MethodPost, proxyBaseAddr+ChatCompletionsPath, strings.NewReader(body))
 				Expect(err).ToNot(HaveOccurred())
-				req.Header.Add(RequestHeaderPrefillURL, prefillBackend.URL)
+				req.Header.Add(requestHeaderPrefillURL, prefillBackend.URL)
 
 				_, err = http.DefaultClient.Do(req)
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(prefillHandler.RequestCount.Load()).To(BeNumerically("==", 1))
 
-				Expect(len(prefillHandler.CompletionRequests)).To(BeNumerically("==", 1))
+				Expect(prefillHandler.CompletionRequests).To(HaveLen(1))
 				prq1 := prefillHandler.CompletionRequests[0]
 
-				Expect(prq1).To(HaveKeyWithValue(RequestFieldDoRemoteDecode, true))
+				Expect(prq1).To(HaveKeyWithValue(requestFieldDoRemoteDecode, true))
 				Expect(prq1).To(HaveKeyWithValue("stream", false))
 				Expect(prq1).ToNot(HaveKey("stream_options"))
 
-				Expect(len(prefillHandler.CompletionResponses)).To(BeNumerically("==", 1))
+				Expect(prefillHandler.CompletionResponses).To(HaveLen(1))
 				prp1 := prefillHandler.CompletionResponses[0]
-				Expect(prp1).To(HaveKey(RequestFieldRemoteBlockIDs))
-				Expect(prp1).To(HaveKey(RequestFieldRemoteEngineID))
+				Expect(prp1).To(HaveKey(requestFieldRemoteBlockIDs))
+				Expect(prp1).To(HaveKey(requestFieldRemoteEngineID))
 
 				Expect(decodeHandler.RequestCount.Load()).To(BeNumerically("==", 1))
-				Expect(len(decodeHandler.CompletionRequests)).To(BeNumerically("==", 1))
+				Expect(decodeHandler.CompletionRequests).To(HaveLen(1))
 				drq1 := decodeHandler.CompletionRequests[0]
 
-				Expect(drq1).To(HaveKey(RequestFieldRemoteBlockIDs))
-				Expect(drq1).To(HaveKey(RequestFieldRemoteEngineID))
+				Expect(drq1).To(HaveKey(requestFieldRemoteBlockIDs))
+				Expect(drq1).To(HaveKey(requestFieldRemoteEngineID))
 
 			})
 

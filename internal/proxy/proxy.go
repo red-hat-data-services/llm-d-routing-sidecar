@@ -30,27 +30,33 @@ import (
 )
 
 const (
-	RequestHeaderPrefillURL = "x-prefiller-url"
-	RequestHeaderRequestID  = "x-request-id"
+	requestHeaderPrefillURL = "x-prefiller-url"
+	requestHeaderRequestID  = "x-request-id"
 
-	RequestFieldKVTransferParams = "kv_transfer_params"
-	RequestFieldMaxTokens        = "max_tokens"
-	RequestFieldDoRemotePrefill  = "do_remote_prefill"
-	RequestFieldDoRemoteDecode   = "do_remote_decode"
-	RequestFieldRemoteBlockIDs   = "remote_block_ids"
-	RequestFieldRemoteEngineID   = "remote_engine_id"
-	RequestFieldRemoteHost       = "remote_host"
-	RequestFieldRemotePort       = "remote_port"
-	RequestFieldStream           = "stream"
-	RequestFieldStreamOptions    = "stream_options"
+	requestFieldKVTransferParams = "kv_transfer_params"
+	requestFieldMaxTokens        = "max_tokens"
+	requestFieldDoRemotePrefill  = "do_remote_prefill"
+	requestFieldDoRemoteDecode   = "do_remote_decode"
+	requestFieldRemoteBlockIDs   = "remote_block_ids"
+	requestFieldRemoteEngineID   = "remote_engine_id"
+	requestFieldRemoteHost       = "remote_host"
+	requestFieldRemotePort       = "remote_port"
+	requestFieldStream           = "stream"
+	requestFieldStreamOptions    = "stream_options"
 
-	ConnectorNIXLV1  = "nixl"
-	ConnectorNIXLV2  = "nixlv2"
+	// ConnectorNIXLV1 enables the (now deprecated) P/D NIXL v1 protocol
+	ConnectorNIXLV1 = "nixl"
+
+	// ConnectorNIXLV2 enables the P/D NIXL v2 protocol
+	ConnectorNIXLV2 = "nixlv2"
+
+	// ConnectorLMCache enables (now deprecated) P/D LMCache protocol
 	ConnectorLMCache = "lmcache"
 )
 
 type protocolRunner func(http.ResponseWriter, *http.Request, string)
 
+// Server is the reverse proxy server
 type Server struct {
 	logger               logr.Logger
 	addr                 net.Addr       // the proxy TCP address
@@ -63,6 +69,7 @@ type Server struct {
 	prefillerProxiesMu sync.RWMutex
 }
 
+// NewProxy creates a new routing reverse proxy
 func NewProxy(port string, decodeURL *url.URL, connector string) *Server {
 	server := &Server{
 		port:             port,
@@ -126,8 +133,8 @@ func (s *Server) createRoutes() *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// Intercept chat requests
-	mux.HandleFunc("POST "+ChatCompletionsPath, s.ChatCompletionsHandler) // /v1/chat/completions (openai)
-	mux.HandleFunc("POST "+CompletionsPath, s.ChatCompletionsHandler)     // /v1/completions (legacy)
+	mux.HandleFunc("POST "+ChatCompletionsPath, s.chatCompletionsHandler) // /v1/chat/completions (openai)
+	mux.HandleFunc("POST "+CompletionsPath, s.chatCompletionsHandler)     // /v1/completions (legacy)
 
 	// passthru decoder handler
 	s.decoderProxy = httputil.NewSingleHostReverseProxy(s.decoderURL)

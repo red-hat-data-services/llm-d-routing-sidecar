@@ -26,8 +26,8 @@ import (
 	"time"
 
 	"github.com/llm-d/llm-d-routing-sidecar/test/mock"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/v2" // nolint:revive
+	. "github.com/onsi/gomega"    // nolint:revive
 	"k8s.io/klog/v2/ktesting"
 )
 
@@ -94,7 +94,7 @@ var _ = Describe("NIXL Connector (v2)", func() {
 
 		req, err := http.NewRequest(http.MethodPost, proxyBaseAddr+ChatCompletionsPath, strings.NewReader(body))
 		Expect(err).ToNot(HaveOccurred())
-		req.Header.Add(RequestHeaderPrefillURL, prefillBackend.URL)
+		req.Header.Add(requestHeaderPrefillURL, prefillBackend.URL)
 
 		rp, err := http.DefaultClient.Do(req)
 		Expect(err).ToNot(HaveOccurred())
@@ -106,30 +106,30 @@ var _ = Describe("NIXL Connector (v2)", func() {
 
 		Expect(prefillHandler.RequestCount.Load()).To(BeNumerically("==", 1))
 
-		Expect(len(prefillHandler.CompletionRequests)).To(BeNumerically("==", 1))
+		Expect(prefillHandler.CompletionRequests).To(HaveLen(1))
 		prq1 := prefillHandler.CompletionRequests[0]
 
-		Expect(prq1).To(HaveKey(RequestFieldKVTransferParams))
-		kvTransferParams, ok := prq1[RequestFieldKVTransferParams].(map[string]any)
+		Expect(prq1).To(HaveKey(requestFieldKVTransferParams))
+		kvTransferParams, ok := prq1[requestFieldKVTransferParams].(map[string]any)
 		Expect(ok).To(BeTrue())
 
-		Expect(kvTransferParams).To(HaveKeyWithValue(RequestFieldDoRemoteDecode, true))
-		Expect(kvTransferParams).To(HaveKeyWithValue(RequestFieldDoRemotePrefill, false))
-		Expect(kvTransferParams).To(HaveKeyWithValue(RequestFieldRemoteBlockIDs, BeNil()))
-		Expect(kvTransferParams).To(HaveKeyWithValue(RequestFieldRemoteEngineID, BeNil()))
-		Expect(kvTransferParams).To(HaveKeyWithValue(RequestFieldRemoteHost, BeNil()))
-		Expect(kvTransferParams).To(HaveKeyWithValue(RequestFieldRemotePort, BeNil()))
+		Expect(kvTransferParams).To(HaveKeyWithValue(requestFieldDoRemoteDecode, true))
+		Expect(kvTransferParams).To(HaveKeyWithValue(requestFieldDoRemotePrefill, false))
+		Expect(kvTransferParams).To(HaveKeyWithValue(requestFieldRemoteBlockIDs, BeNil()))
+		Expect(kvTransferParams).To(HaveKeyWithValue(requestFieldRemoteEngineID, BeNil()))
+		Expect(kvTransferParams).To(HaveKeyWithValue(requestFieldRemoteHost, BeNil()))
+		Expect(kvTransferParams).To(HaveKeyWithValue(requestFieldRemotePort, BeNil()))
 
 		Expect(prq1).To(HaveKeyWithValue("max_tokens", BeNumerically("==", 1)))
 		Expect(prq1).To(HaveKeyWithValue("stream", false))
 		Expect(prq1).ToNot(HaveKey("stream_options"))
 
-		Expect(len(prefillHandler.CompletionResponses)).To(BeNumerically("==", 1))
+		Expect(prefillHandler.CompletionResponses).To(HaveLen(1))
 		prp1 := prefillHandler.CompletionResponses[0]
-		Expect(prp1).To(HaveKey(RequestFieldKVTransferParams))
+		Expect(prp1).To(HaveKey(requestFieldKVTransferParams))
 
 		Expect(decodeHandler.RequestCount.Load()).To(BeNumerically("==", 1))
-		Expect(len(decodeHandler.CompletionRequests)).To(BeNumerically("==", 1))
+		Expect(decodeHandler.CompletionRequests).To(HaveLen(1))
 	})
 
 })

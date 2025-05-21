@@ -30,8 +30,9 @@ format: ## Format Go source files
 	@gofmt -l -w $(SRC)
 
 .PHONY: test
-test: check-ginkgo ## Run tests
+test: ## Run tests
 	@printf "\033[33;1m==== Running tests ====\033[0m\n"
+	go install github.com/onsi/ginkgo/v2/ginkgo@latest
 	ginkgo -v ./internal/...
 
 .PHONY: post-deploy-test

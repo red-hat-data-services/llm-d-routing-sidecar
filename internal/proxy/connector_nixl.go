@@ -62,14 +62,14 @@ func (s *Server) runNIXLProtocolV1(w http.ResponseWriter, r *http.Request, prefi
 	ctx := r.Context()
 	preq := r.Clone(ctx)
 
-	preq.Header.Add(RequestHeaderRequestID, uuidStr)
+	preq.Header.Add(requestHeaderRequestID, uuidStr)
 
-	streamValue, streamOk := completionRequest[RequestFieldStream]
-	streamOptionsValue, streamOptionsOk := completionRequest[RequestFieldStreamOptions]
+	streamValue, streamOk := completionRequest[requestFieldStream]
+	streamOptionsValue, streamOptionsOk := completionRequest[requestFieldStreamOptions]
 
-	completionRequest[RequestFieldDoRemoteDecode] = true
-	completionRequest[RequestFieldStream] = false
-	delete(completionRequest, RequestFieldStreamOptions)
+	completionRequest[requestFieldDoRemoteDecode] = true
+	completionRequest[requestFieldStream] = false
+	delete(completionRequest, requestFieldStreamOptions)
 
 	pbody, err := json.Marshal(completionRequest)
 	if err != nil {
@@ -111,56 +111,56 @@ func (s *Server) runNIXLProtocolV1(w http.ResponseWriter, r *http.Request, prefi
 
 	// 1. Verify fields exists
 
-	blockIDs, ok := prefillerResponse[RequestFieldRemoteBlockIDs]
+	blockIDs, ok := prefillerResponse[requestFieldRemoteBlockIDs]
 	if !ok {
 		// TODO: error or ignore?
 		s.logger.Info("warning: missing 'remote_block_ids' field in prefiller response")
 	}
 
-	engineID, ok := prefillerResponse[RequestFieldRemoteEngineID]
+	engineID, ok := prefillerResponse[requestFieldRemoteEngineID]
 	if !ok {
 		// TODO: error or ignore?
 		s.logger.Info("warning: missing 'remote_engine_id' field in prefiller response")
 	}
 
-	remoteHost, ok := prefillerResponse[RequestFieldRemoteHost]
+	remoteHost, ok := prefillerResponse[requestFieldRemoteHost]
 	if !ok {
 		// TODO: error or ignore?
 		s.logger.Info("warning: missing 'remote_host' field in prefiller response")
 	}
 
-	remotePort, ok := prefillerResponse[RequestFieldRemotePort]
+	remotePort, ok := prefillerResponse[requestFieldRemotePort]
 	if !ok {
 		// TODO: error or ignore?
 		s.logger.Info("warning: missing 'remote_port' field in prefiller response")
 	}
 
 	s.logger.Info("received prefiller response",
-		RequestFieldRemoteBlockIDs, blockIDs,
-		RequestFieldRemoteEngineID, engineID,
-		RequestFieldRemoteHost, remoteHost,
-		RequestFieldRemotePort, remotePort,
+		requestFieldRemoteBlockIDs, blockIDs,
+		requestFieldRemoteEngineID, engineID,
+		requestFieldRemoteHost, remoteHost,
+		requestFieldRemotePort, remotePort,
 	)
 
 	// 2. Prepare decode request
 	dreq := r.Clone(ctx)
 
-	dreq.Header.Add(RequestHeaderRequestID, uuidStr)
+	dreq.Header.Add(requestHeaderRequestID, uuidStr)
 
-	delete(completionRequest, RequestFieldDoRemoteDecode)
-	delete(completionRequest, RequestFieldStream)
+	delete(completionRequest, requestFieldDoRemoteDecode)
+	delete(completionRequest, requestFieldStream)
 	if streamOk {
-		completionRequest[RequestFieldStream] = streamValue
+		completionRequest[requestFieldStream] = streamValue
 	}
 	if streamOptionsOk {
-		completionRequest[RequestFieldStreamOptions] = streamOptionsValue
+		completionRequest[requestFieldStreamOptions] = streamOptionsValue
 	}
 
-	completionRequest[RequestFieldDoRemotePrefill] = true
-	completionRequest[RequestFieldRemoteBlockIDs] = blockIDs
-	completionRequest[RequestFieldRemoteEngineID] = engineID
-	completionRequest[RequestFieldRemoteHost] = remoteHost
-	completionRequest[RequestFieldRemotePort] = remotePort
+	completionRequest[requestFieldDoRemotePrefill] = true
+	completionRequest[requestFieldRemoteBlockIDs] = blockIDs
+	completionRequest[requestFieldRemoteEngineID] = engineID
+	completionRequest[requestFieldRemoteHost] = remoteHost
+	completionRequest[requestFieldRemotePort] = remotePort
 
 	dbody, err := json.Marshal(completionRequest)
 	if err != nil {
