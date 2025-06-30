@@ -49,13 +49,13 @@ INFO:     ::1:0 - "POST /v1/completions HTTP/1.1" 200 OK
 
 ## LMCache KVConnector Testing
 
-The [lmcache](config/lmcache) directory contains the configuration files deploying a simple 1P/1D application
+The [lmcache](config/nixl) directory contains the configuration files deploying a simple 1P/1D application
 using NIXL with GPU-2-GPU transfer and sidecar.
 
 To deploy this application in the `fmass-eval` cluster, run this command:
 
 ```
-$ kustomize build test/config/overlays/fmass/lmcache | oc apply -f -
+$ kustomize build test/config/overlays/fmass/nixl | oc apply -f -
 ```
 
 Port-forward the sidecar port on your local machine:
