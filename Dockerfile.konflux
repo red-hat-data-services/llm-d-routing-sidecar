@@ -1,5 +1,9 @@
 # Build Stage: using Go 1.24.1 image
-FROM quay.io/projectquay/golang:1.24 AS builder
+# At the monent, there is no Gotoolset 1.24 image available in the registry.redhat.io, so we are using the
+# openshift-golang-builder image from the registry.redhat.io/rh-osbs/openshift-golang-builder:v1.24
+# To-do: switch back to the registry.access.redhat.com/ubi9/go-toolset:1.24 image when it is available
+# FROM registry.access.redhat.com/ubi9/go-toolset:1.24 as builder
+FROM registry-proxy.engineering.redhat.com/rh-osbs/openshift-golang-builder:v1.24 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -21,7 +25,7 @@ COPY internal/ internal/
 # was called. For example, if we call make image-build in a local env which has the Apple Silicon M1 SO
 # the docker BUILDPLATFORM arg will be linux/arm64 when for Apple x86 it will be linux/amd64. Therefore,
 # by leaving it empty we can ensure that the container and binary shipped on it will have the same platform.
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o bin/llm-d-routing-sidecar cmd/cmd.go
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -mod=mod -a -o bin/llm-d-routing-sidecar cmd/cmd.go
 
 FROM registry.access.redhat.com/ubi9/ubi:latest
 WORKDIR /
