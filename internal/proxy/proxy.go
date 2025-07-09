@@ -140,7 +140,7 @@ func (s *Server) createRoutes() *http.ServeMux {
 
 	// Passthrough decoder handler
 	decoderProxy := httputil.NewSingleHostReverseProxy(s.decoderURL)
-	decoderProxy.ErrorHandler = func(res http.ResponseWriter, req *http.Request, err error) {
+	decoderProxy.ErrorHandler = func(res http.ResponseWriter, _ *http.Request, err error) {
 
 		// Log errors from the decoder proxy
 		switch {
