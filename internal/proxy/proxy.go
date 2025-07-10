@@ -18,11 +18,13 @@ package proxy
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -137,7 +139,19 @@ func (s *Server) createRoutes() *http.ServeMux {
 	mux.HandleFunc("POST "+CompletionsPath, s.chatCompletionsHandler)     // /v1/completions (legacy)
 
 	// Passthrough decoder handler
-	s.decoderProxy = httputil.NewSingleHostReverseProxy(s.decoderURL)
+	decoderProxy := httputil.NewSingleHostReverseProxy(s.decoderURL)
+	decoderProxy.ErrorHandler = func(res http.ResponseWriter, _ *http.Request, err error) {
+
+		// Log errors from the decoder proxy
+		switch {
+		case errors.Is(err, syscall.ECONNREFUSED):
+			s.logger.Error(err, "waiting for vLLM to be ready")
+		default:
+			s.logger.Error(err, "http: proxy error")
+		}
+		res.WriteHeader(http.StatusBadGateway)
+	}
+	s.decoderProxy = decoderProxy
 	mux.Handle("/", s.decoderProxy)
 
 	return mux
