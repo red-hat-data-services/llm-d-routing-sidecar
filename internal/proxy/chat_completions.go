@@ -29,13 +29,13 @@ var (
 )
 
 func (s *Server) chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
-	prefillPodURL := r.Header.Get(requestHeaderPrefillURL)
+	prefillPodHostPort := r.Header.Get(requestHeaderPrefillHostPort)
 
-	if prefillPodURL == "" {
+	if prefillPodHostPort == "" {
 		s.logger.V(4).Info("skip disagreggated prefill")
 		s.decoderProxy.ServeHTTP(w, r)
 		return
 	}
 
-	s.runConnectorProtocol(w, r, prefillPodURL)
+	s.runConnectorProtocol(w, r, prefillPodHostPort)
 }

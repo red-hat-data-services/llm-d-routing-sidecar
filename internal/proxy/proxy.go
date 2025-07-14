@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -32,8 +33,8 @@ import (
 )
 
 const (
-	requestHeaderPrefillURL = "x-prefiller-url"
-	requestHeaderRequestID  = "x-request-id"
+	requestHeaderPrefillHostPort = "x-prefiller-url"
+	requestHeaderRequestID       = "x-request-id"
 
 	requestFieldKVTransferParams = "kv_transfer_params"
 	requestFieldMaxTokens        = "max_tokens"
@@ -157,24 +158,28 @@ func (s *Server) createRoutes() *http.ServeMux {
 	return mux
 }
 
-func (s *Server) prefillerProxyHandler(targetURL string) (http.Handler, error) {
+func (s *Server) prefillerProxyHandler(hostPort string) (http.Handler, error) {
 	s.prefillerProxiesMu.RLock()
-	proxy, exists := s.prefillerProxies[targetURL]
+	proxy, exists := s.prefillerProxies[hostPort]
 	s.prefillerProxiesMu.RUnlock()
 
 	if exists {
 		return proxy, nil
 	}
 
-	u, err := url.Parse(targetURL)
+	// Backward compatible behavior: trim `http:` prefix
+	hostPort, _ = strings.CutPrefix(hostPort, "http://")
+
+	u, err := url.Parse("http://" + hostPort)
 	if err != nil {
-		s.logger.Error(err, "failed to parse URL", "url", targetURL)
+		s.logger.Error(err, "failed to parse URL", "hostPort", hostPort)
 		return nil, err
 	}
+
 	proxy = httputil.NewSingleHostReverseProxy(u)
 
 	s.prefillerProxiesMu.Lock()
-	s.prefillerProxies[targetURL] = proxy
+	s.prefillerProxies[hostPort] = proxy
 	s.prefillerProxiesMu.Unlock()
 
 	return proxy, nil
