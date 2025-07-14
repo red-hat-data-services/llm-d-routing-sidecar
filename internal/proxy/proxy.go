@@ -33,7 +33,8 @@ import (
 )
 
 const (
-	requestHeaderPrefillHostPort = "x-prefiller-url"
+	requestHeaderPrefillURL      = "x-prefiller-url"
+	requestHeaderPrefillHostPort = "x-prefiller-host-port"
 	requestHeaderRequestID       = "x-request-id"
 
 	requestFieldKVTransferParams = "kv_transfer_params"
@@ -67,17 +68,19 @@ type Server struct {
 	decoderURL           *url.URL       // the local decoder URL
 	decoderProxy         http.Handler   // decoder proxy handler
 	runConnectorProtocol protocolRunner // the handler for running the protocol
+	prefillerURLPrefix   string
 
 	prefillerProxies   map[string]http.Handler // cached prefiller proxy handlers
 	prefillerProxiesMu sync.RWMutex
 }
 
 // NewProxy creates a new routing reverse proxy
-func NewProxy(port string, decodeURL *url.URL, connector string) *Server {
+func NewProxy(port string, decodeURL *url.URL, connector string, prefillerUseTLS bool) *Server {
 	server := &Server{
-		port:             port,
-		decoderURL:       decodeURL,
-		prefillerProxies: make(map[string]http.Handler),
+		port:               port,
+		decoderURL:         decodeURL,
+		prefillerProxies:   make(map[string]http.Handler),
+		prefillerURLPrefix: "http://",
 	}
 	switch connector {
 	case ConnectorLMCache:
@@ -88,6 +91,10 @@ func NewProxy(port string, decodeURL *url.URL, connector string) *Server {
 		fallthrough
 	default:
 		server.runConnectorProtocol = server.runNIXLProtocolV2
+	}
+
+	if prefillerUseTLS {
+		server.prefillerURLPrefix = "https://"
 	}
 
 	return server
@@ -170,7 +177,7 @@ func (s *Server) prefillerProxyHandler(hostPort string) (http.Handler, error) {
 	// Backward compatible behavior: trim `http:` prefix
 	hostPort, _ = strings.CutPrefix(hostPort, "http://")
 
-	u, err := url.Parse("http://" + hostPort)
+	u, err := url.Parse(s.prefillerURLPrefix + hostPort)
 	if err != nil {
 		s.logger.Error(err, "failed to parse URL", "hostPort", hostPort)
 		return nil, err
