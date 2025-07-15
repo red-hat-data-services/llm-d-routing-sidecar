@@ -28,14 +28,16 @@ import (
 
 func main() {
 	var (
-		port      string
-		vLLMPort  string
-		connector string
+		port            string
+		vLLMPort        string
+		connector       string
+		prefillerUseTLS bool
 	)
 
 	flag.StringVar(&port, "port", "8000", "the port the sidecar is listening on")
 	flag.StringVar(&vLLMPort, "vllm-port", "8001", "the port vLLM is listening on")
 	flag.StringVar(&connector, "connector", "nixl", "the P/D connector being used. Either nixl, nixlv2 or lmcache")
+	flag.BoolVar(&prefillerUseTLS, "prefiller-use-tls", false, "whether to use TLS when sending requests to prefillers")
 	klog.InitFlags(nil)
 	flag.Parse()
 
@@ -58,7 +60,7 @@ func main() {
 		return
 	}
 
-	proxy := proxy.NewProxy(port, targetURL, connector)
+	proxy := proxy.NewProxy(port, targetURL, connector, prefillerUseTLS)
 	if err := proxy.Start(ctx); err != nil {
 		logger.Error(err, "Failed to start proxy server")
 	}

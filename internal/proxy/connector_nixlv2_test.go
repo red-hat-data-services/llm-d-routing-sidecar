@@ -65,7 +65,69 @@ var _ = Describe("NIXL Connector (v2)", func() {
 		url, err := url.Parse(decodeBackend.URL)
 		Expect(err).ToNot(HaveOccurred())
 		decodeURL = url
-		proxy = NewProxy("0", decodeURL, ConnectorNIXLV2) // port 0 to automatically choose one that's available.
+		proxy = NewProxy("0", decodeURL, ConnectorNIXLV2, false) // port 0 to automatically choose one that's available.
+	})
+
+	It("should successfully send request to 1. prefill 2. decode with the correct fields (backward compatible behavior)", func() {
+		By("starting the proxy")
+		go func() {
+			defer GinkgoRecover()
+
+			err := proxy.Start(ctx)
+			Expect(err).ToNot(HaveOccurred())
+		}()
+
+		time.Sleep(1 * time.Second)
+		Expect(proxy.addr).ToNot(BeNil())
+		proxyBaseAddr := "http://" + proxy.addr.String()
+
+		By("sending a /v1/chat/completions request with prefill header")
+		body := `{
+				"model": "Qwen/Qwen2-0.5B",
+				"messages": [
+				  {"role": "user", "content": "Hello"}
+				],
+				"max_tokens": 50
+			}`
+
+		req, err := http.NewRequest(http.MethodPost, proxyBaseAddr+ChatCompletionsPath, strings.NewReader(body))
+		Expect(err).ToNot(HaveOccurred())
+		req.Header.Add(requestHeaderPrefillURL, prefillBackend.URL)
+
+		rp, err := http.DefaultClient.Do(req)
+		Expect(err).ToNot(HaveOccurred())
+
+		if rp.StatusCode != 200 {
+			bp, _ := io.ReadAll(rp.Body) //nolint:all
+			Fail(string(bp))
+		}
+
+		Expect(prefillHandler.RequestCount.Load()).To(BeNumerically("==", 1))
+
+		Expect(prefillHandler.CompletionRequests).To(HaveLen(1))
+		prq1 := prefillHandler.CompletionRequests[0]
+
+		Expect(prq1).To(HaveKey(requestFieldKVTransferParams))
+		kvTransferParams, ok := prq1[requestFieldKVTransferParams].(map[string]any)
+		Expect(ok).To(BeTrue())
+
+		Expect(kvTransferParams).To(HaveKeyWithValue(requestFieldDoRemoteDecode, true))
+		Expect(kvTransferParams).To(HaveKeyWithValue(requestFieldDoRemotePrefill, false))
+		Expect(kvTransferParams).To(HaveKeyWithValue(requestFieldRemoteBlockIDs, BeNil()))
+		Expect(kvTransferParams).To(HaveKeyWithValue(requestFieldRemoteEngineID, BeNil()))
+		Expect(kvTransferParams).To(HaveKeyWithValue(requestFieldRemoteHost, BeNil()))
+		Expect(kvTransferParams).To(HaveKeyWithValue(requestFieldRemotePort, BeNil()))
+
+		Expect(prq1).To(HaveKeyWithValue("max_tokens", BeNumerically("==", 1)))
+		Expect(prq1).To(HaveKeyWithValue("stream", false))
+		Expect(prq1).ToNot(HaveKey("stream_options"))
+
+		Expect(prefillHandler.CompletionResponses).To(HaveLen(1))
+		prp1 := prefillHandler.CompletionResponses[0]
+		Expect(prp1).To(HaveKey(requestFieldKVTransferParams))
+
+		Expect(decodeHandler.RequestCount.Load()).To(BeNumerically("==", 1))
+		Expect(decodeHandler.CompletionRequests).To(HaveLen(1))
 	})
 
 	It("should successfully send request to 1. prefill 2. decode with the correct fields", func() {
@@ -92,7 +154,7 @@ var _ = Describe("NIXL Connector (v2)", func() {
 
 		req, err := http.NewRequest(http.MethodPost, proxyBaseAddr+ChatCompletionsPath, strings.NewReader(body))
 		Expect(err).ToNot(HaveOccurred())
-		req.Header.Add(requestHeaderPrefillURL, prefillBackend.URL)
+		req.Header.Add(requestHeaderPrefillHostPort, prefillBackend.URL[len("http://"):])
 
 		rp, err := http.DefaultClient.Do(req)
 		Expect(err).ToNot(HaveOccurred())

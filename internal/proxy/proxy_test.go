@@ -48,7 +48,7 @@ var _ = Describe("Reverse Proxy", func() {
 				targetURL, err := url.Parse(decodeBackend.URL)
 				Expect(err).ToNot(HaveOccurred())
 
-				proxy := NewProxy("0", targetURL, connector) // port 0 to automatically choose one that's available.
+				proxy := NewProxy("0", targetURL, connector, false) // port 0 to automatically choose one that's available.
 
 				ctx, cancelFn := context.WithCancel(ctx)
 				defer cancelFn()
@@ -124,10 +124,61 @@ var _ = Describe("Reverse Proxy", func() {
 			var proxy *Server
 
 			BeforeEach(func() {
-				proxy = NewProxy("0", decodeURL, ConnectorNIXLV1) // port 0 to automatically choose one that's available.
+				proxy = NewProxy("0", decodeURL, ConnectorNIXLV1, false) // port 0 to automatically choose one that's available.
 
 				decodeHandler.Connector = ConnectorNIXLV1
 				prefillHandler.Connector = ConnectorNIXLV1
+			})
+
+			It("should successfully send request to 1. prefill 2. decode with the right fields (backward compatible behavior)", func() {
+				By("starting the proxy")
+				go func() {
+					defer GinkgoRecover()
+
+					err := proxy.Start(ctx)
+					Expect(err).ToNot(HaveOccurred())
+				}()
+
+				time.Sleep(1 * time.Second)
+				Expect(proxy.addr).ToNot(BeNil())
+				proxyBaseAddr := "http://" + proxy.addr.String()
+
+				By("sending a /v1/chat/completions request with prefill header")
+				body := `{
+        			"model": "Qwen/Qwen2-0.5B",
+	        		"messages": [
+    			      {"role": "user", "content": "Hello"}
+        			],
+        			"max_tokens": 50
+				}`
+
+				req, err := http.NewRequest(http.MethodPost, proxyBaseAddr+ChatCompletionsPath, strings.NewReader(body))
+				Expect(err).ToNot(HaveOccurred())
+				req.Header.Add(requestHeaderPrefillHostPort, prefillBackend.URL)
+
+				_, err = http.DefaultClient.Do(req)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(prefillHandler.RequestCount.Load()).To(BeNumerically("==", 1))
+
+				Expect(prefillHandler.CompletionRequests).To(HaveLen(1))
+				prq1 := prefillHandler.CompletionRequests[0]
+
+				Expect(prq1).To(HaveKeyWithValue(requestFieldDoRemoteDecode, true))
+				Expect(prq1).To(HaveKeyWithValue("stream", false))
+				Expect(prq1).ToNot(HaveKey("stream_options"))
+
+				Expect(prefillHandler.CompletionResponses).To(HaveLen(1))
+				prp1 := prefillHandler.CompletionResponses[0]
+				Expect(prp1).To(HaveKey(requestFieldRemoteBlockIDs))
+				Expect(prp1).To(HaveKey(requestFieldRemoteEngineID))
+
+				Expect(decodeHandler.RequestCount.Load()).To(BeNumerically("==", 1))
+				Expect(decodeHandler.CompletionRequests).To(HaveLen(1))
+				drq1 := decodeHandler.CompletionRequests[0]
+
+				Expect(drq1).To(HaveKey(requestFieldRemoteBlockIDs))
+				Expect(drq1).To(HaveKey(requestFieldRemoteEngineID))
 			})
 
 			It("should successfully send request to 1. prefill 2. decode with the right fields", func() {
@@ -154,7 +205,7 @@ var _ = Describe("Reverse Proxy", func() {
 
 				req, err := http.NewRequest(http.MethodPost, proxyBaseAddr+ChatCompletionsPath, strings.NewReader(body))
 				Expect(err).ToNot(HaveOccurred())
-				req.Header.Add(requestHeaderPrefillURL, prefillBackend.URL)
+				req.Header.Add(requestHeaderPrefillHostPort, prefillBackend.URL[len("http://"):])
 
 				_, err = http.DefaultClient.Do(req)
 				Expect(err).ToNot(HaveOccurred())

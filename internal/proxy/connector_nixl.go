@@ -25,7 +25,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (s *Server) runNIXLProtocolV1(w http.ResponseWriter, r *http.Request, prefillPodURL string) {
+func (s *Server) runNIXLProtocolV1(w http.ResponseWriter, r *http.Request, prefillPodHostPort string) {
 	s.logger.Info("running NIXL protocol V1")
 
 	// Read request body
@@ -81,7 +81,7 @@ func (s *Server) runNIXLProtocolV1(w http.ResponseWriter, r *http.Request, prefi
 	preq.Body = io.NopCloser(strings.NewReader(string(pbody)))
 	preq.ContentLength = int64(len(pbody))
 
-	prefillHandler, err := s.prefillerProxyHandler(prefillPodURL)
+	prefillHandler, err := s.prefillerProxyHandler(prefillPodHostPort)
 	if err != nil {
 		if err := errorBadGateway(err, w); err != nil {
 			s.logger.Error(err, "failed to send error response to client")
@@ -90,7 +90,7 @@ func (s *Server) runNIXLProtocolV1(w http.ResponseWriter, r *http.Request, prefi
 	}
 
 	// 2. Forward request to prefiller
-	s.logger.V(5).Info("sending request to prefiller", "url", prefillPodURL, "body", string(pbody))
+	s.logger.Info("sending request to prefiller", "hostPort", prefillPodHostPort, "body", string(pbody))
 	pw := &bufferedResponseWriter{}
 	prefillHandler.ServeHTTP(pw, preq)
 
