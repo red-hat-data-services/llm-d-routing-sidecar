@@ -2,7 +2,6 @@
 
 ## Testing the NIXLConnector
 
-
 The [nixl](config/overlays/fmass/nixl) directory contains the configuration files deploying
 a simple 1P1D sample application using the NIXL connector.
 
@@ -46,4 +45,3 @@ INFO 05-06 01:42:03 [loggers.py:116] Engine 000: Avg prompt throughput: 5.0 toke
 DEBUG 05-06 01:42:05 [core.py:425] EngineCore waiting for work.
 INFO:     ::1:0 - "POST /v1/completions HTTP/1.1" 200 OK
 ```
-

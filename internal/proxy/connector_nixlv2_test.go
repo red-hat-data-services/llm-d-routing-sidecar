@@ -65,7 +65,8 @@ var _ = Describe("NIXL Connector (v2)", func() {
 		url, err := url.Parse(decodeBackend.URL)
 		Expect(err).ToNot(HaveOccurred())
 		decodeURL = url
-		proxy = NewProxy("0", decodeURL, ConnectorNIXLV2, false) // port 0 to automatically choose one that's available.
+		cfg := Config{Connector: ConnectorNIXLV2}
+		proxy = NewProxy("0", decodeURL, cfg) // port 0 to automatically choose one that's available.
 	})
 
 	It("should successfully send request to 1. prefill 2. decode with the correct fields (backward compatible behavior)", func() {
