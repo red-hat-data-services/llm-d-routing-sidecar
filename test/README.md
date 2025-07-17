@@ -2,7 +2,7 @@
 
 ## Testing the NIXLConnector
 
-The [nixl](config/overlays/fmass/nixl) directory contains the configuration files deploying
+The [nixl](config/overlays/llmd/nixl) directory contains the configuration files deploying
 a simple 1P1D sample application using the NIXL connector.
 
 To deploy this application in the `eval` cluster, run this command:
