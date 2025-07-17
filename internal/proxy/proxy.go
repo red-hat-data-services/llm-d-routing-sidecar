@@ -18,20 +18,24 @@ package proxy
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"sync"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-logr/logr"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"k8s.io/klog/v2"
 )
 
 const (
-	requestHeaderPrefillURL = "x-prefiller-url"
-	requestHeaderRequestID  = "x-request-id"
+	requestHeaderPrefillURL      = "x-prefiller-url"
+	requestHeaderPrefillHostPort = "x-prefiller-host-port"
+	requestHeaderRequestID       = "x-request-id"
 
 	requestFieldKVTransferParams = "kv_transfer_params"
 	requestFieldMaxTokens        = "max_tokens"
@@ -64,17 +68,20 @@ type Server struct {
 	decoderURL           *url.URL       // the local decoder URL
 	decoderProxy         http.Handler   // decoder proxy handler
 	runConnectorProtocol protocolRunner // the handler for running the protocol
+	prefillerURLPrefix   string
 
-	prefillerProxies   map[string]http.Handler // cached prefiller proxy handlers
-	prefillerProxiesMu sync.RWMutex
+	prefillerProxies *lru.Cache[string, http.Handler] // cached prefiller proxy handlers
 }
 
 // NewProxy creates a new routing reverse proxy
-func NewProxy(port string, decodeURL *url.URL, connector string) *Server {
+func NewProxy(port string, decodeURL *url.URL, connector string, prefillerUseTLS bool) *Server {
+	cache, _ := lru.New[string, http.Handler](16) // nolint:all
+
 	server := &Server{
-		port:             port,
-		decoderURL:       decodeURL,
-		prefillerProxies: make(map[string]http.Handler),
+		port:               port,
+		decoderURL:         decodeURL,
+		prefillerProxies:   cache,
+		prefillerURLPrefix: "http://",
 	}
 	switch connector {
 	case ConnectorLMCache:
@@ -85,6 +92,10 @@ func NewProxy(port string, decodeURL *url.URL, connector string) *Server {
 		fallthrough
 	default:
 		server.runConnectorProtocol = server.runNIXLProtocolV2
+	}
+
+	if prefillerUseTLS {
+		server.prefillerURLPrefix = "https://"
 	}
 
 	return server
@@ -136,32 +147,42 @@ func (s *Server) createRoutes() *http.ServeMux {
 	mux.HandleFunc("POST "+ChatCompletionsPath, s.chatCompletionsHandler) // /v1/chat/completions (openai)
 	mux.HandleFunc("POST "+CompletionsPath, s.chatCompletionsHandler)     // /v1/completions (legacy)
 
-	// passthru decoder handler
-	s.decoderProxy = httputil.NewSingleHostReverseProxy(s.decoderURL)
+	// Passthrough decoder handler
+	decoderProxy := httputil.NewSingleHostReverseProxy(s.decoderURL)
+	decoderProxy.ErrorHandler = func(res http.ResponseWriter, _ *http.Request, err error) {
+
+		// Log errors from the decoder proxy
+		switch {
+		case errors.Is(err, syscall.ECONNREFUSED):
+			s.logger.Error(err, "waiting for vLLM to be ready")
+		default:
+			s.logger.Error(err, "http: proxy error")
+		}
+		res.WriteHeader(http.StatusBadGateway)
+	}
+	s.decoderProxy = decoderProxy
 	mux.Handle("/", s.decoderProxy)
 
 	return mux
 }
 
-func (s *Server) prefillerProxyHandler(targetURL string) (http.Handler, error) {
-	s.prefillerProxiesMu.RLock()
-	proxy, exists := s.prefillerProxies[targetURL]
-	s.prefillerProxiesMu.RUnlock()
-
+func (s *Server) prefillerProxyHandler(hostPort string) (http.Handler, error) {
+	proxy, exists := s.prefillerProxies.Get(hostPort)
 	if exists {
 		return proxy, nil
 	}
 
-	u, err := url.Parse(targetURL)
+	// Backward compatible behavior: trim `http:` prefix
+	hostPort, _ = strings.CutPrefix(hostPort, "http://")
+
+	u, err := url.Parse(s.prefillerURLPrefix + hostPort)
 	if err != nil {
-		s.logger.Error(err, "failed to parse URL", "url", targetURL)
+		s.logger.Error(err, "failed to parse URL", "hostPort", hostPort)
 		return nil, err
 	}
-	proxy = httputil.NewSingleHostReverseProxy(u)
 
-	s.prefillerProxiesMu.Lock()
-	s.prefillerProxies[targetURL] = proxy
-	s.prefillerProxiesMu.Unlock()
+	proxy = httputil.NewSingleHostReverseProxy(u)
+	s.prefillerProxies.Add(hostPort, proxy)
 
 	return proxy, nil
 }
