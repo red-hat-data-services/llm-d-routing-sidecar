@@ -27,17 +27,15 @@ import (
 )
 
 func main() {
-	var (
-		port            string
-		vLLMPort        string
-		connector       string
-		prefillerUseTLS bool
-	)
-
-	flag.StringVar(&port, "port", "8000", "the port the sidecar is listening on")
-	flag.StringVar(&vLLMPort, "vllm-port", "8001", "the port vLLM is listening on")
-	flag.StringVar(&connector, "connector", "nixl", "the P/D connector being used. Either nixl, nixlv2 or lmcache")
-	flag.BoolVar(&prefillerUseTLS, "prefiller-use-tls", false, "whether to use TLS when sending requests to prefillers")
+	port := flag.String("port", "8000", "the port the sidecar is listening on")
+	vLLMPort := flag.String("vllm-port", "8001", "the port vLLM is listening on")
+	connector := flag.String("connector", "nixl", "the P/D connector being used. Either nixl, nixlv2 or lmcache")
+	prefillerUseTLS := flag.Bool("prefiller-use-tls", false, "whether to use TLS when sending requests to prefillers")
+	secureProxy := flag.Bool("secure-proxy", true, "Enables secure proxy. Defaults to true.")
+	certPath := flag.String(
+		"cert-path", "", "The path to the certificate for secure proxy. The certificate and private key files "+
+			"are assumed to be named tls.crt and tls.key, respectively. If not set, and secureProxy is enabled, "+
+			"then a self-signed certificate is used (for testing).")
 	klog.InitFlags(nil)
 	flag.Parse()
 
@@ -47,20 +45,27 @@ func main() {
 	ctx := signals.SetupSignalHandler(context.Background())
 	logger := klog.FromContext(ctx)
 
-	if connector != proxy.ConnectorNIXLV1 && connector != proxy.ConnectorNIXLV2 && connector != proxy.ConnectorLMCache {
+	if *connector != proxy.ConnectorNIXLV1 && *connector != proxy.ConnectorNIXLV2 && *connector != proxy.ConnectorLMCache {
 		logger.Info("Error: --connector must either be 'nixl', 'nixlv2' or 'lmcache'")
 		return
 	}
 	logger.Info("p/d connector validated", "connector", connector)
 
 	// start reverse proxy HTTP server
-	targetURL, err := url.Parse("http://localhost:" + vLLMPort)
+	targetURL, err := url.Parse("http://localhost:" + *vLLMPort)
 	if err != nil {
 		logger.Error(err, "Failed to create targetURL")
 		return
 	}
 
-	proxy := proxy.NewProxy(port, targetURL, connector, prefillerUseTLS)
+	config := proxy.Config{
+		Connector:       *connector,
+		PrefillerUseTLS: *prefillerUseTLS,
+		SecureProxy:     *secureProxy,
+		CertPath:        *certPath,
+	}
+
+	proxy := proxy.NewProxy(*port, targetURL, config)
 	if err := proxy.Start(ctx); err != nil {
 		logger.Error(err, "Failed to start proxy server")
 	}

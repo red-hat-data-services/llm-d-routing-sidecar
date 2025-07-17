@@ -18,6 +18,7 @@ package proxy
 
 import (
 	"context"
+	"crypto/tls"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -35,7 +36,7 @@ var _ = Describe("Reverse Proxy", func() {
 	When("x-prefiller-url is not present", func() {
 		DescribeTable("should forward requests to decode server",
 
-			func(path string, connector string) {
+			func(path string, secureProxy bool) {
 				_, ctx := ktesting.NewTestContext(GinkgoT())
 
 				ackHandlerFn := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -48,7 +49,8 @@ var _ = Describe("Reverse Proxy", func() {
 				targetURL, err := url.Parse(decodeBackend.URL)
 				Expect(err).ToNot(HaveOccurred())
 
-				proxy := NewProxy("0", targetURL, connector, false) // port 0 to automatically choose one that's available.
+				cfg := Config{SecureProxy: secureProxy}
+				proxy := NewProxy("0", targetURL, cfg) // port 0 to automatically choose one that's available.
 
 				ctx, cancelFn := context.WithCancel(ctx)
 				defer cancelFn()
@@ -63,8 +65,23 @@ var _ = Describe("Reverse Proxy", func() {
 				time.Sleep(1 * time.Second)
 				Expect(proxy.addr).ToNot(BeNil())
 
-				proxyAddr := "http://" + proxy.addr.String() + path
-				resp, err := http.Get(proxyAddr)
+				tr := &http.Transport{
+					TLSClientConfig: &tls.Config{
+						InsecureSkipVerify: true, // Skip certificate verification
+					},
+				}
+				client := &http.Client{
+					Transport: tr,
+					Timeout:   10 * time.Second,
+				}
+
+				proxyAddr := proxy.addr.String() + path
+				if secureProxy {
+					proxyAddr = "https://" + proxyAddr
+				} else {
+					proxyAddr = "http://" + proxyAddr
+				}
+				resp, err := client.Get(proxyAddr)
 				Expect(err).ToNot(HaveOccurred())
 
 				_, err = io.ReadAll(resp.Body)
@@ -75,17 +92,17 @@ var _ = Describe("Reverse Proxy", func() {
 				Expect(resp.StatusCode).To(BeNumerically("==", 200))
 			},
 
-			Entry("when the path is /v1/chat/completions and protocol is LMCache", "/v1/chat/completions", ConnectorLMCache),
-			Entry("when the path is /v1/completions and protocol is LMCache", "/v1/completions", ConnectorLMCache),
-			Entry("when the path is /v1/embeddings and protocol is LMCache", "/v1/embeddings", ConnectorLMCache),
-			Entry("when the path is /score and protocol is LMCache", "/score", ConnectorLMCache),
-			Entry("when the path is /healthz and protocol is LMCache", "/healthz", ConnectorLMCache),
+			Entry("when the path is /v1/chat/completions and secure proxy is false", "/v1/chat/completions", false),
+			Entry("when the path is /v1/completions and secure proxy is false", "/v1/completions", false),
+			Entry("when the path is /v1/embeddings and secure proxy is false", "/v1/embeddings", false),
+			Entry("when the path is /score and secure proxy is false", "/score", false),
+			Entry("when the path is /healthz and secure proxy is false", "/healthz", false),
 
-			Entry("when the path is /v1/chat/completions and protocol is NIXL", "/v1/chat/completions", ConnectorNIXLV1),
-			Entry("when the path is /v1/completions and protocol is NIXL", "/v1/completions", ConnectorNIXLV1),
-			Entry("when the path is /v1/embeddings and protocol is NIXL", "/v1/embeddings", ConnectorNIXLV1),
-			Entry("when the path is /score and protocol is NIXL", "/score", ConnectorNIXLV1),
-			Entry("when the path is /healthz and protocol is NIXL", "/healthz", ConnectorNIXLV1),
+			Entry("when the path is /v1/chat/completions and secure proxy is true", "/v1/chat/completions", true),
+			Entry("when the path is /v1/completions and secure proxy is true", "/v1/completions", true),
+			Entry("when the path is /v1/embeddings and secure proxy is true", "/v1/embeddings", true),
+			Entry("when the path is /score and secure proxy is true", "/score", true),
+			Entry("when the path is /healthz and secure proxy is true", "/healthz", true),
 		)
 	})
 
@@ -124,7 +141,8 @@ var _ = Describe("Reverse Proxy", func() {
 			var proxy *Server
 
 			BeforeEach(func() {
-				proxy = NewProxy("0", decodeURL, ConnectorNIXLV1, false) // port 0 to automatically choose one that's available.
+				cfg := Config{Connector: ConnectorNIXLV1}
+				proxy = NewProxy("0", decodeURL, cfg) // port 0 to automatically choose one that's available.
 
 				decodeHandler.Connector = ConnectorNIXLV1
 				prefillHandler.Connector = ConnectorNIXLV1
