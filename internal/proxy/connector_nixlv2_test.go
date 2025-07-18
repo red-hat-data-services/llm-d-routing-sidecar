@@ -66,7 +66,8 @@ var _ = Describe("NIXL Connector (v2)", func() {
 		Expect(err).ToNot(HaveOccurred())
 		decodeURL = url
 		cfg := Config{Connector: ConnectorNIXLV2}
-		proxy = NewProxy("0", decodeURL, cfg) // port 0 to automatically choose one that's available.
+		proxy, err = NewProxy("0", decodeURL, cfg) // port 0 to automatically choose one that's available.
+		Expect(err).ToNot(HaveOccurred())
 	})
 
 	It("should successfully send request to 1. prefill 2. decode with the correct fields (backward compatible behavior)", func() {
