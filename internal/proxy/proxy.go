@@ -74,6 +74,12 @@ type Config struct {
 	// CertPath is the location of the TLS certificates
 	CertPath string
 
+	// PrefillerInsecureSkipVerify configure the proxy to skip TLS verification for requests to prefiller.
+	PrefillerInsecureSkipVerify bool
+
+	// DecoderInsecureSkipVerify configure the proxy to skip TLS verification for requests to decoder.
+	DecoderInsecureSkipVerify bool
+
 	// enableSSRFProtection enables SSRF protection.
 	enableSSRFProtection bool
 
@@ -223,6 +229,13 @@ func (s *Server) createRoutes() *http.ServeMux {
 
 	// Passthrough decoder handler
 	decoderProxy := httputil.NewSingleHostReverseProxy(s.decoderURL)
+	if s.decoderURL.Scheme == "https" {
+		decoderProxy.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: s.config.DecoderInsecureSkipVerify,
+			},
+		}
+	}
 	decoderProxy.ErrorHandler = func(res http.ResponseWriter, _ *http.Request, err error) {
 
 		// Log errors from the decoder proxy
@@ -255,8 +268,15 @@ func (s *Server) prefillerProxyHandler(hostPort string) (http.Handler, error) {
 		return nil, err
 	}
 
-	proxy = httputil.NewSingleHostReverseProxy(u)
-	s.prefillerProxies.Add(hostPort, proxy)
+	newProxy := httputil.NewSingleHostReverseProxy(u)
+	if u.Scheme == "https" {
+		newProxy.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: s.config.PrefillerInsecureSkipVerify,
+			},
+		}
+	}
+	s.prefillerProxies.Add(hostPort, newProxy)
 
-	return proxy, nil
+	return newProxy, nil
 }
