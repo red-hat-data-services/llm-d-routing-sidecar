@@ -91,6 +91,9 @@ func main() {
 		CertPath:                    *certPath,
 		PrefillerInsecureSkipVerify: *prefillerInsecureSkipVerify,
 		DecoderInsecureSkipVerify:   *decoderInsecureSkipVerify,
+		EnableSSRFProtection:        *enableSSRFProtection,
+		InferencePoolNamespace:      *inferencePoolNamespace,
+		InferencePoolName:           *inferencePoolName,
 	}
 
 	proxy, err := proxy.NewProxy(*port, targetURL, config)
