@@ -50,7 +50,8 @@ var _ = Describe("Reverse Proxy", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				cfg := Config{SecureProxy: secureProxy}
-				proxy := NewProxy("0", targetURL, cfg) // port 0 to automatically choose one that's available.
+				proxy, err := NewProxy("0", targetURL, cfg) // port 0 to automatically choose one that's available.
+				Expect(err).ToNot(HaveOccurred())
 
 				ctx, cancelFn := context.WithCancel(ctx)
 				defer cancelFn()
@@ -141,8 +142,10 @@ var _ = Describe("Reverse Proxy", func() {
 			var proxy *Server
 
 			BeforeEach(func() {
+				var err error
 				cfg := Config{Connector: ConnectorNIXLV1}
-				proxy = NewProxy("0", decodeURL, cfg) // port 0 to automatically choose one that's available.
+				proxy, err = NewProxy("0", decodeURL, cfg) // port 0 to automatically choose one that's available.
+				Expect(err).ToNot(HaveOccurred())
 
 				decodeHandler.Connector = ConnectorNIXLV1
 				prefillHandler.Connector = ConnectorNIXLV1

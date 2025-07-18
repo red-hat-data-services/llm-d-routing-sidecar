@@ -19,6 +19,7 @@ import (
 	"context"
 	"flag"
 	"net/url"
+	"os"
 
 	"k8s.io/klog/v2"
 
@@ -37,6 +38,10 @@ func main() {
 		"cert-path", "", "The path to the certificate for secure proxy. The certificate and private key files "+
 			"are assumed to be named tls.crt and tls.key, respectively. If not set, and secureProxy is enabled, "+
 			"then a self-signed certificate is used (for testing).")
+	enableSSRFProtection := flag.Bool("enable-ssrf-protection", false, "enable SSRF protection using InferencePool allowlisting")
+	inferencePoolNamespace := flag.String("inference-pool-namespace", os.Getenv("INFERENCE_POOL_NAMESPACE"), "the Kubernetes namespace to watch for InferencePool resources (defaults to INFERENCE_POOL_NAMESPACE env var)")
+	inferencePoolName := flag.String("inference-pool-name", os.Getenv("INFERENCE_POOL_NAME"), "the specific InferencePool name to watch (defaults to INFERENCE_POOL_NAME env var)")
+
 	klog.InitFlags(nil)
 	flag.Parse()
 
@@ -51,6 +56,20 @@ func main() {
 		return
 	}
 	logger.Info("p/d connector validated", "connector", connector)
+
+	// Determine namespace and pool name for SSRF protection
+	if *enableSSRFProtection {
+		if *inferencePoolNamespace == "" {
+			logger.Info("Error: --inference-pool-namespace or INFERENCE_POOL_NAMESPACE environment variable is required when --enable-ssrf-protection is true")
+			return
+		}
+		if *inferencePoolName == "" {
+			logger.Info("Error: --inference-pool-name or INFERENCE_POOL_NAME environment variable is required when --enable-ssrf-protection is true")
+			return
+		}
+
+		logger.Info("SSRF protection enabled", "namespace", inferencePoolNamespace, "poolName", inferencePoolName)
+	}
 
 	// start reverse proxy HTTP server
 	scheme := "http"
@@ -70,7 +89,10 @@ func main() {
 		CertPath:        *certPath,
 	}
 
-	proxy := proxy.NewProxy(*port, targetURL, config)
+	proxy, err := proxy.NewProxy(*port, targetURL, config)
+	if err != nil {
+		logger.Error(err, "Failed to create proxy")
+	}
 	if err := proxy.Start(ctx); err != nil {
 		logger.Error(err, "failed to start proxy server")
 	}

@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -72,6 +73,15 @@ type Config struct {
 
 	// CertPath is the location of the TLS certificates
 	CertPath string
+
+	// enableSSRFProtection enables SSRF protection.
+	enableSSRFProtection bool
+
+	// inferencePoolNamespace InferencePool object namespace.
+	inferencePoolNamespace string
+
+	// inferencePoolNamespace InferencePool object name.
+	inferencePoolName string
 }
 
 type protocolRunner func(http.ResponseWriter, *http.Request, string)
@@ -85,19 +95,29 @@ type Server struct {
 	decoderProxy         http.Handler   // decoder proxy handler
 	runConnectorProtocol protocolRunner // the handler for running the protocol
 	prefillerURLPrefix   string
-	prefillerProxies     *lru.Cache[string, http.Handler] // cached prefiller proxy handlers
-	config               Config
+	allowlistValidator   *AllowlistValidator // SSRF protection validator
+
+	prefillerProxies *lru.Cache[string, http.Handler] // cached prefiller proxy handlers
+
+	config Config
 }
 
 // NewProxy creates a new routing reverse proxy
-func NewProxy(port string, decodeURL *url.URL, config Config) *Server {
+func NewProxy(port string, decodeURL *url.URL, config Config) (*Server, error) {
 	cache, _ := lru.New[string, http.Handler](16) // nolint:all
+
+	// Create SSRF protection validator
+	validator, err := NewAllowlistValidator(config.enableSSRFProtection, config.inferencePoolNamespace, config.inferencePoolName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SSRF protection validator: %w", err)
+	}
 
 	server := &Server{
 		port:               port,
 		decoderURL:         decodeURL,
 		prefillerProxies:   cache,
 		prefillerURLPrefix: "http://",
+		allowlistValidator: validator,
 		config:             config,
 	}
 	switch config.Connector {
@@ -115,13 +135,19 @@ func NewProxy(port string, decodeURL *url.URL, config Config) *Server {
 		server.prefillerURLPrefix = "https://"
 	}
 
-	return server
+	return server, nil
 }
 
 // Start the HTTP reverse proxy.
 func (s *Server) Start(ctx context.Context) error {
 	logger := klog.FromContext(ctx).WithName("proxy server")
 	s.logger = logger
+
+	// Start SSRF protection validator
+	if err := s.allowlistValidator.Start(ctx); err != nil {
+		logger.Error(err, "Failed to start allowlist validator")
+		return err
+	}
 
 	ln, err := net.Listen("tcp", ":"+s.port)
 	if err != nil {
@@ -158,6 +184,9 @@ func (s *Server) Start(ctx context.Context) error {
 		<-ctx.Done()
 		logger.Info("shutting down")
 
+		// Stop allowlist validator
+		s.allowlistValidator.Stop()
+
 		ctx, cancelFn := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancelFn()
 		if err := server.Shutdown(ctx); err != nil {
@@ -186,6 +215,9 @@ func (s *Server) createRoutes() *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// Intercept chat requests
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 	mux.HandleFunc("POST "+ChatCompletionsPath, s.chatCompletionsHandler) // /v1/chat/completions (openai)
 	mux.HandleFunc("POST "+CompletionsPath, s.chatCompletionsHandler)     // /v1/completions (legacy)
 
