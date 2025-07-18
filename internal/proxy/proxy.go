@@ -1,5 +1,5 @@
 /*
-Copyright 2025 IBM.
+Copyright 2025 The llm-d Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package proxy
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"net"
 	"net/http"
@@ -58,6 +59,21 @@ const (
 	ConnectorLMCache = "lmcache"
 )
 
+// Config represents the proxy server configuration
+type Config struct {
+	// Connector is the name of the P/D protocol the proxy must follow.
+	Connector string
+
+	// PrefillerUseTLS indicates whether to use TLS when sending requests to prefillers.
+	PrefillerUseTLS bool
+
+	// SecureProxy enables secure proxy when true
+	SecureProxy bool
+
+	// CertPath is the location of the TLS certificates
+	CertPath string
+}
+
 type protocolRunner func(http.ResponseWriter, *http.Request, string)
 
 // Server is the reverse proxy server
@@ -69,12 +85,12 @@ type Server struct {
 	decoderProxy         http.Handler   // decoder proxy handler
 	runConnectorProtocol protocolRunner // the handler for running the protocol
 	prefillerURLPrefix   string
-
-	prefillerProxies *lru.Cache[string, http.Handler] // cached prefiller proxy handlers
+	prefillerProxies     *lru.Cache[string, http.Handler] // cached prefiller proxy handlers
+	config               Config
 }
 
 // NewProxy creates a new routing reverse proxy
-func NewProxy(port string, decodeURL *url.URL, connector string, prefillerUseTLS bool) *Server {
+func NewProxy(port string, decodeURL *url.URL, config Config) *Server {
 	cache, _ := lru.New[string, http.Handler](16) // nolint:all
 
 	server := &Server{
@@ -82,8 +98,9 @@ func NewProxy(port string, decodeURL *url.URL, connector string, prefillerUseTLS
 		decoderURL:         decodeURL,
 		prefillerProxies:   cache,
 		prefillerURLPrefix: "http://",
+		config:             config,
 	}
-	switch connector {
+	switch config.Connector {
 	case ConnectorLMCache:
 		server.runConnectorProtocol = server.runLMCacheProtocol
 	case ConnectorNIXLV1:
@@ -94,7 +111,7 @@ func NewProxy(port string, decodeURL *url.URL, connector string, prefillerUseTLS
 		server.runConnectorProtocol = server.runNIXLProtocolV2
 	}
 
-	if prefillerUseTLS {
+	if config.PrefillerUseTLS {
 		server.prefillerURLPrefix = "https://"
 	}
 
@@ -118,6 +135,24 @@ func (s *Server) Start(ctx context.Context) error {
 
 	server := &http.Server{Handler: mux}
 
+	// Create TLS certificates
+	if s.config.SecureProxy {
+		var cert tls.Certificate
+		if s.config.CertPath != "" {
+			cert, err = tls.LoadX509KeyPair(s.config.CertPath+"/tls.crt", s.config.CertPath+"/tls.key")
+		} else {
+			cert, err = CreateSelfSignedTLSCertificate()
+		}
+		if err != nil {
+			logger.Error(err, "failed to create TLS certificate")
+			return err
+		}
+		server.TLSConfig = &tls.Config{
+			Certificates: []tls.Certificate{cert},
+		}
+		logger.Info("server TLS configured")
+	}
+
 	// Setup graceful termination (not strictly needed for sidecars)
 	go func() {
 		<-ctx.Done()
@@ -126,14 +161,21 @@ func (s *Server) Start(ctx context.Context) error {
 		ctx, cancelFn := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancelFn()
 		if err := server.Shutdown(ctx); err != nil {
-			logger.Error(err, "Failed to gracefully shutdown")
+			logger.Error(err, "failed to gracefully shutdown")
 		}
 	}()
 
 	logger.Info("starting", "addr", s.addr.String())
-	if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
-		logger.Error(err, "Failed to start")
-		return err
+	if s.config.SecureProxy {
+		if err := server.ServeTLS(ln, "", ""); err != nil && err != http.ErrServerClosed {
+			logger.Error(err, "failed to start")
+			return err
+		}
+	} else {
+		if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
+			logger.Error(err, "failed to start")
+			return err
+		}
 	}
 
 	return nil
