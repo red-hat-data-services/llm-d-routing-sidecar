@@ -1,5 +1,5 @@
 /*
-Copyright 2025 IBM.
+Copyright 2025 The llm-d Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,13 +29,30 @@ var (
 )
 
 func (s *Server) chatCompletionsHandler(w http.ResponseWriter, r *http.Request) {
-	prefillPodURL := r.Header.Get(requestHeaderPrefillURL)
+	prefillPodHostPort := r.Header.Get(requestHeaderPrefillHostPort)
 
-	if prefillPodURL == "" {
+	if prefillPodHostPort == "" {
+		// backward compatible behavior: to remove in next release
+		prefillPodHostPort = r.Header.Get(requestHeaderPrefillURL)
+	}
+
+	if prefillPodHostPort == "" {
 		s.logger.V(4).Info("skip disagreggated prefill")
 		s.decoderProxy.ServeHTTP(w, r)
 		return
 	}
 
-	s.runConnectorProtocol(w, r, prefillPodURL)
+	// SSRF Protection: Check if the prefill target is allowed
+	if !s.allowlistValidator.IsAllowed(prefillPodHostPort) {
+		s.logger.Error(nil, "SSRF protection: prefill target not in allowlist",
+			"target", prefillPodHostPort,
+			"clientIP", r.RemoteAddr,
+			"userAgent", r.Header.Get("User-Agent"),
+			"requestPath", r.URL.Path)
+		http.Error(w, "Forbidden: prefill target not allowed by SSRF protection", http.StatusForbidden)
+		return
+	}
+
+	s.logger.V(4).Info("SSRF protection: prefill target allowed", "target", prefillPodHostPort)
+	s.runConnectorProtocol(w, r, prefillPodHostPort)
 }

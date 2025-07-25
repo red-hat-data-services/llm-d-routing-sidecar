@@ -1,5 +1,5 @@
 /*
-Copyright 2025 IBM.
+Copyright 2025 The llm-d Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,7 +33,6 @@ const (
 )
 
 var _ = Describe("Sidecar", Ordered, func() {
-
 	// After each test, check for failures and collect logs, events,
 	// and pod descriptions for debugging.
 	AfterEach(func() {
@@ -66,14 +65,12 @@ var _ = Describe("Sidecar", Ordered, func() {
 		} else {
 			fmt.Println("Failed to describe controller pod")
 		}
-
 	})
 
 	SetDefaultEventuallyTimeout(20 * time.Second)
 	SetDefaultEventuallyPollingInterval(time.Second)
 
 	Context("Qwen", func() {
-
 		It("should run successfully", func() {
 			By("validating that the qwen pod is running as expected")
 
@@ -89,7 +86,5 @@ var _ = Describe("Sidecar", Ordered, func() {
 
 			Eventually(verifyQwenUp).Should(Succeed())
 		})
-
 	})
-
 })
