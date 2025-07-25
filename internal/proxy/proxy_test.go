@@ -1,5 +1,5 @@
 /*
-Copyright 2025 IBM.
+Copyright 2025 The llm-d Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package proxy
 
 import (
 	"context"
+	"crypto/tls"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -32,12 +33,10 @@ import (
 )
 
 var _ = Describe("Reverse Proxy", func() {
-
 	When("x-prefiller-url is not present", func() {
-
 		DescribeTable("should forward requests to decode server",
 
-			func(path string, connector string) {
+			func(path string, secureProxy bool) {
 				_, ctx := ktesting.NewTestContext(GinkgoT())
 
 				ackHandlerFn := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -50,7 +49,9 @@ var _ = Describe("Reverse Proxy", func() {
 				targetURL, err := url.Parse(decodeBackend.URL)
 				Expect(err).ToNot(HaveOccurred())
 
-				proxy := NewProxy("0", targetURL, connector) // port 0 to automatically choose one that's available.
+				cfg := Config{SecureProxy: secureProxy}
+				proxy, err := NewProxy("0", targetURL, cfg) // port 0 to automatically choose one that's available.
+				Expect(err).ToNot(HaveOccurred())
 
 				ctx, cancelFn := context.WithCancel(ctx)
 				defer cancelFn()
@@ -65,8 +66,23 @@ var _ = Describe("Reverse Proxy", func() {
 				time.Sleep(1 * time.Second)
 				Expect(proxy.addr).ToNot(BeNil())
 
-				proxyAddr := "http://" + proxy.addr.String() + path
-				resp, err := http.Get(proxyAddr)
+				tr := &http.Transport{
+					TLSClientConfig: &tls.Config{
+						InsecureSkipVerify: true, // Skip certificate verification
+					},
+				}
+				client := &http.Client{
+					Transport: tr,
+					Timeout:   10 * time.Second,
+				}
+
+				proxyAddr := proxy.addr.String() + path
+				if secureProxy {
+					proxyAddr = "https://" + proxyAddr
+				} else {
+					proxyAddr = "http://" + proxyAddr
+				}
+				resp, err := client.Get(proxyAddr)
 				Expect(err).ToNot(HaveOccurred())
 
 				_, err = io.ReadAll(resp.Body)
@@ -77,17 +93,17 @@ var _ = Describe("Reverse Proxy", func() {
 				Expect(resp.StatusCode).To(BeNumerically("==", 200))
 			},
 
-			Entry("when the path is /v1/chat/completions and protocol is LMCache", "/v1/chat/completions", ConnectorLMCache),
-			Entry("when the path is /v1/completions and protocol is LMCache", "/v1/completions", ConnectorLMCache),
-			Entry("when the path is /v1/embeddings and protocol is LMCache", "/v1/embeddings", ConnectorLMCache),
-			Entry("when the path is /score and protocol is LMCache", "/score", ConnectorLMCache),
-			Entry("when the path is /healthz and protocol is LMCache", "/healthz", ConnectorLMCache),
+			Entry("when the path is /v1/chat/completions and secure proxy is false", "/v1/chat/completions", false),
+			Entry("when the path is /v1/completions and secure proxy is false", "/v1/completions", false),
+			Entry("when the path is /v1/embeddings and secure proxy is false", "/v1/embeddings", false),
+			Entry("when the path is /score and secure proxy is false", "/score", false),
+			Entry("when the path is /healthz and secure proxy is false", "/healthz", false),
 
-			Entry("when the path is /v1/chat/completions and protocol is NIXL", "/v1/chat/completions", ConnectorNIXLV1),
-			Entry("when the path is /v1/completions and protocol is NIXL", "/v1/completions", ConnectorNIXLV1),
-			Entry("when the path is /v1/embeddings and protocol is NIXL", "/v1/embeddings", ConnectorNIXLV1),
-			Entry("when the path is /score and protocol is NIXL", "/score", ConnectorNIXLV1),
-			Entry("when the path is /healthz and protocol is NIXL", "/healthz", ConnectorNIXLV1),
+			Entry("when the path is /v1/chat/completions and secure proxy is true", "/v1/chat/completions", true),
+			Entry("when the path is /v1/completions and secure proxy is true", "/v1/completions", true),
+			Entry("when the path is /v1/embeddings and secure proxy is true", "/v1/embeddings", true),
+			Entry("when the path is /score and secure proxy is true", "/score", true),
+			Entry("when the path is /healthz and secure proxy is true", "/healthz", true),
 		)
 	})
 
@@ -126,14 +142,16 @@ var _ = Describe("Reverse Proxy", func() {
 			var proxy *Server
 
 			BeforeEach(func() {
-				proxy = NewProxy("0", decodeURL, ConnectorNIXLV1) // port 0 to automatically choose one that's available.
+				var err error
+				cfg := Config{Connector: ConnectorNIXLV1}
+				proxy, err = NewProxy("0", decodeURL, cfg) // port 0 to automatically choose one that's available.
+				Expect(err).ToNot(HaveOccurred())
 
 				decodeHandler.Connector = ConnectorNIXLV1
 				prefillHandler.Connector = ConnectorNIXLV1
 			})
 
-			It("should successfully send request to 1. prefill 2. decode with the right fields", func() {
-
+			It("should successfully send request to 1. prefill 2. decode with the right fields (backward compatible behavior)", func() {
 				By("starting the proxy")
 				go func() {
 					defer GinkgoRecover()
@@ -157,7 +175,7 @@ var _ = Describe("Reverse Proxy", func() {
 
 				req, err := http.NewRequest(http.MethodPost, proxyBaseAddr+ChatCompletionsPath, strings.NewReader(body))
 				Expect(err).ToNot(HaveOccurred())
-				req.Header.Add(requestHeaderPrefillURL, prefillBackend.URL)
+				req.Header.Add(requestHeaderPrefillHostPort, prefillBackend.URL)
 
 				_, err = http.DefaultClient.Do(req)
 				Expect(err).ToNot(HaveOccurred())
@@ -182,9 +200,58 @@ var _ = Describe("Reverse Proxy", func() {
 
 				Expect(drq1).To(HaveKey(requestFieldRemoteBlockIDs))
 				Expect(drq1).To(HaveKey(requestFieldRemoteEngineID))
-
 			})
 
+			It("should successfully send request to 1. prefill 2. decode with the right fields", func() {
+				By("starting the proxy")
+				go func() {
+					defer GinkgoRecover()
+
+					err := proxy.Start(ctx)
+					Expect(err).ToNot(HaveOccurred())
+				}()
+
+				time.Sleep(1 * time.Second)
+				Expect(proxy.addr).ToNot(BeNil())
+				proxyBaseAddr := "http://" + proxy.addr.String()
+
+				By("sending a /v1/chat/completions request with prefill header")
+				body := `{
+        			"model": "Qwen/Qwen2-0.5B",
+	        		"messages": [
+    			      {"role": "user", "content": "Hello"}
+        			],
+        			"max_tokens": 50
+				}`
+
+				req, err := http.NewRequest(http.MethodPost, proxyBaseAddr+ChatCompletionsPath, strings.NewReader(body))
+				Expect(err).ToNot(HaveOccurred())
+				req.Header.Add(requestHeaderPrefillHostPort, prefillBackend.URL[len("http://"):])
+
+				_, err = http.DefaultClient.Do(req)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(prefillHandler.RequestCount.Load()).To(BeNumerically("==", 1))
+
+				Expect(prefillHandler.CompletionRequests).To(HaveLen(1))
+				prq1 := prefillHandler.CompletionRequests[0]
+
+				Expect(prq1).To(HaveKeyWithValue(requestFieldDoRemoteDecode, true))
+				Expect(prq1).To(HaveKeyWithValue("stream", false))
+				Expect(prq1).ToNot(HaveKey("stream_options"))
+
+				Expect(prefillHandler.CompletionResponses).To(HaveLen(1))
+				prp1 := prefillHandler.CompletionResponses[0]
+				Expect(prp1).To(HaveKey(requestFieldRemoteBlockIDs))
+				Expect(prp1).To(HaveKey(requestFieldRemoteEngineID))
+
+				Expect(decodeHandler.RequestCount.Load()).To(BeNumerically("==", 1))
+				Expect(decodeHandler.CompletionRequests).To(HaveLen(1))
+				drq1 := decodeHandler.CompletionRequests[0]
+
+				Expect(drq1).To(HaveKey(requestFieldRemoteBlockIDs))
+				Expect(drq1).To(HaveKey(requestFieldRemoteEngineID))
+			})
 		})
 	})
 })
