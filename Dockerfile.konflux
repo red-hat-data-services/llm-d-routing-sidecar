@@ -23,7 +23,13 @@ COPY internal/ internal/
 # by leaving it empty we can ensure that the container and binary shipped on it will have the same platform.
 RUN CGO_ENABLED=1 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -mod=mod -a -o bin/llm-d-routing-sidecar cmd/cmd.go
 
-FROM registry.access.redhat.com/ubi9/ubi:latest
+FROM registry.access.redhat.com/ubi8/ubi:latest
+RUN dnf install -y python2-pip && \
+    dnf clean all && \
+    pip2 install --upgrade pip && \
+    # urllib2>=2.6.0 is required to fix several security issues
+    pip install "urllib2>=2.6.0" --no-cache-dir
+
 WORKDIR /
 COPY --from=builder /workspace/bin/llm-d-routing-sidecar /app/llm-d-routing-sidecar
 USER 65532:65532
