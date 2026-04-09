@@ -1,6 +1,6 @@
 module github.com/llm-d/llm-d-routing-sidecar
 
-go 1.24.2
+go 1.25.8
 
 require (
 	github.com/go-logr/logr v1.4.2
