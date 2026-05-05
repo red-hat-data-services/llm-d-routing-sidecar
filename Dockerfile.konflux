@@ -1,5 +1,6 @@
-# Build Stage: using Go 1.24 image
-FROM registry.redhat.io/ubi9/go-toolset:1.24@sha256:6234f572204d672a0ee0686d748fbb9b7b05679368bf0d7a4446e13970e58060 as builder
+# Build Stage: using Go 1.25.8 image
+FROM registry.redhat.io/ubi9/go-toolset:9.7@sha256:8c5aeac74b4b60dc2e5e44f6b639186b7ec2fec8f0eb9a36d4a32dcf8e255f52 AS builder
+
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -23,7 +24,8 @@ COPY internal/ internal/
 # by leaving it empty we can ensure that the container and binary shipped on it will have the same platform.
 RUN CGO_ENABLED=1 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -mod=mod -a -o bin/llm-d-routing-sidecar cmd/cmd.go
 
-FROM registry.access.redhat.com/ubi9/ubi:latest
+FROM registry.access.redhat.com/ubi9/ubi:9.7@sha256:039095faabf1edde946ff528b3b6906efa046ee129f3e33fd933280bb6936221
+
 WORKDIR /
 COPY --from=builder /workspace/bin/llm-d-routing-sidecar /app/llm-d-routing-sidecar
 USER 65532:65532
