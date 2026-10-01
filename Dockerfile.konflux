@@ -24,7 +24,7 @@ COPY internal/ internal/
 # by leaving it empty we can ensure that the container and binary shipped on it will have the same platform.
 RUN CGO_ENABLED=1 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -mod=mod -a -o bin/llm-d-routing-sidecar cmd/cmd.go
 
-FROM registry.access.redhat.com/ubi9/ubi:9.7@sha256:039095faabf1edde946ff528b3b6906efa046ee129f3e33fd933280bb6936221
+FROM registry.access.redhat.com/ubi9/ubi:9.8@sha256:094ea2ecfd3225af8f93807b99daa9ff33710fc705ebdf6e8466f46ed605585c
 
 WORKDIR /
 COPY --from=builder /workspace/bin/llm-d-routing-sidecar /app/llm-d-routing-sidecar
